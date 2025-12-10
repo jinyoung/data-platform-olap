@@ -1,0 +1,131 @@
+{
+  "app": {
+    "title": "AI Pivot Studio",
+    "copyright": "© {year} uEngine • AI Pivot Studio"
+  },
+  "nav": {
+    "pivotAnalysis": "Análisis Pivot",
+    "naturalLanguage": "Lenguaje Natural",
+    "cubeModeler": "Modelador de Cubos"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "reset": "Restablecer",
+    "execute": "Ejecutar",
+    "skip": "Omitir",
+    "done": "Listo",
+    "generate": "Generar",
+    "upload": "Subir",
+    "preview": "Vista previa",
+    "name": "Nombre",
+    "table": "Tabla",
+    "column": "Columna",
+    "type": "Tipo"
+  },
+  "schema": {
+    "dropZone": "Suelta el XML de Mondrian aquí",
+    "or": "o",
+    "browseFiles": "Explorar archivos",
+    "pasteXml": "Pegar XML",
+    "loadSample": "Cargar esquema de ejemplo",
+    "availableCubes": "Cubos disponibles",
+    "noSchema": "Sin esquema cargado",
+    "noSchemaDesc": "Sube un esquema XML de Mondrian para comenzar con el análisis pivot."
+  },
+  "pivot": {
+    "configuration": "Configuración Pivot",
+    "dimensions": "Dimensiones",
+    "measures": "Medidas",
+    "rows": "Filas",
+    "columns": "Columnas",
+    "filters": "Filtros",
+    "dropFieldsHere": "Suelta campos aquí",
+    "showSql": "Mostrar SQL",
+    "generatedSql": "SQL generado",
+    "queryResults": "Resultados de consulta",
+    "noResults": "No hay resultados para mostrar",
+    "executeQuery": "Ejecuta la consulta para ver resultados"
+  },
+  "nlQuery": {
+    "title": "Consulta en Lenguaje Natural",
+    "placeholder": "Haz una pregunta sobre tus datos en lenguaje natural...",
+    "examples": "Preguntas de ejemplo:",
+    "example1": "Muéstrame las ventas totales por categoría de producto para 2024",
+    "example2": "¿Cuáles son los 5 productos principales por ingresos?",
+    "example3": "Compara las tendencias de ventas trimestrales",
+    "askQuestion": "Hacer pregunta"
+  },
+  "modeler": {
+    "visualModeler": "Modelador Visual",
+    "aiGenerator": "Generador AI",
+    "cubeDefinition": "Definición del Cubo",
+    "cubeName": "Nombre del Cubo",
+    "factTable": "Tabla de Hechos",
+    "foreignKey": "Clave Foránea",
+    "hierarchyLevels": "Niveles de Jerarquía",
+    "levelName": "Nombre del Nivel",
+    "addDimension": "Agregar Dimensión",
+    "addMeasure": "Agregar Medida",
+    "addLevel": "+ Agregar Nivel",
+    "aggregator": "Agregador",
+    "xmlPreview": "XML",
+    "starSchema": "Esquema Estrella",
+    "uploadCube": "Subir Cubo",
+    "describeYourCube": "Describe tu Cubo",
+    "describeHint": "Describe el cubo que quieres crear en lenguaje natural. Incluye dimensiones, jerarquías y medidas.",
+    "tryExamples": "Prueba estos ejemplos:",
+    "generateWithAi": "Generar con AI"
+  },
+  "tableGenerator": {
+    "title": "Crear Tablas de Base de Datos",
+    "uploadSuccess": "¡Cubo \"{name}\" subido exitosamente!",
+    "createTablesQuestion": "¿Deseas crear las tablas de base de datos y generar datos de ejemplo?",
+    "step1Title": "Generar DDL de Tablas y Datos de Ejemplo",
+    "step1Desc": "AI creará tablas PostgreSQL y datos de ejemplo realistas",
+    "sampleRows": "Filas de ejemplo:",
+    "generateSql": "Generar SQL",
+    "generating": "Generando...",
+    "streaming": "Transmitiendo...",
+    "generatedSqlLabel": "SQL generado:",
+    "step2Title": "Ejecutar SQL",
+    "step2Desc": "Crear tablas e insertar datos de ejemplo en PostgreSQL",
+    "executeSql": "Ejecutar SQL",
+    "executing": "Ejecutando...",
+    "tablesCreated": "¡Tablas creadas exitosamente!",
+    "statementsExecuted": "{success} sentencias ejecutadas, {failed} fallidas",
+    "executionFailed": "Ejecución fallida",
+    "startUsingCube": "Comenzar a usar el Cubo"
+  },
+  "diagram": {
+    "factTable": "Tabla de Hechos",
+    "dimensionTables": "Tablas de Dimensiones",
+    "foreignKeyRelationships": "Relaciones de Clave Foránea"
+  },
+  "placeholders": {
+    "cubeName": "ej. SalesCube",
+    "factTable": "ej. fact_sales",
+    "dimensionName": "ej. Product",
+    "tableName": "ej. dim_product",
+    "foreignKey": "ej. product_id",
+    "levelName": "Nombre del Nivel",
+    "columnName": "Columna",
+    "measureName": "Nombre de Medida"
+  },
+  "aggregators": {
+    "sum": "SUMA",
+    "count": "CONTAR",
+    "avg": "PROMEDIO",
+    "min": "MÍN",
+    "max": "MÁX",
+    "distinctCount": "CONTAR DISTINTOS"
+  }
+}
+
+

@@ -1,0 +1,131 @@
+{
+  "app": {
+    "title": "AI 피봇 스튜디오",
+    "copyright": "© {year} 유엔진 • AI 피봇 스튜디오"
+  },
+  "nav": {
+    "pivotAnalysis": "피봇 분석",
+    "naturalLanguage": "자연어 질의",
+    "cubeModeler": "큐브 모델러"
+  },
+  "common": {
+    "loading": "로딩 중...",
+    "error": "오류",
+    "success": "성공",
+    "cancel": "취소",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "편집",
+    "close": "닫기",
+    "reset": "초기화",
+    "execute": "실행",
+    "skip": "건너뛰기",
+    "done": "완료",
+    "generate": "생성",
+    "upload": "업로드",
+    "preview": "미리보기",
+    "name": "이름",
+    "table": "테이블",
+    "column": "컬럼",
+    "type": "유형"
+  },
+  "schema": {
+    "dropZone": "Mondrian XML 파일을 여기에 드롭하세요",
+    "or": "또는",
+    "browseFiles": "파일 찾아보기",
+    "pasteXml": "XML 붙여넣기",
+    "loadSample": "샘플 스키마 로드",
+    "availableCubes": "사용 가능한 큐브",
+    "noSchema": "스키마 없음",
+    "noSchemaDesc": "피봇 분석을 시작하려면 Mondrian XML 스키마를 업로드하세요."
+  },
+  "pivot": {
+    "configuration": "피봇 구성",
+    "dimensions": "차원",
+    "measures": "측정값",
+    "rows": "행",
+    "columns": "열",
+    "filters": "필터",
+    "dropFieldsHere": "여기에 필드를 놓으세요",
+    "showSql": "SQL 보기",
+    "generatedSql": "생성된 SQL",
+    "queryResults": "쿼리 결과",
+    "noResults": "표시할 결과가 없습니다",
+    "executeQuery": "쿼리를 실행하여 결과를 확인하세요"
+  },
+  "nlQuery": {
+    "title": "자연어 질의",
+    "placeholder": "데이터에 대해 자연어로 질문하세요...",
+    "examples": "질문 예시:",
+    "example1": "2024년 제품 카테고리별 총 매출을 보여줘",
+    "example2": "매출 상위 5개 제품은?",
+    "example3": "분기별 매출 추이를 비교해줘",
+    "askQuestion": "질문하기"
+  },
+  "modeler": {
+    "visualModeler": "비주얼 모델러",
+    "aiGenerator": "AI 생성기",
+    "cubeDefinition": "큐브 정의",
+    "cubeName": "큐브 이름",
+    "factTable": "팩트 테이블",
+    "foreignKey": "외래 키",
+    "hierarchyLevels": "계층 레벨",
+    "levelName": "레벨 이름",
+    "addDimension": "차원 추가",
+    "addMeasure": "측정값 추가",
+    "addLevel": "+ 레벨 추가",
+    "aggregator": "집계 함수",
+    "xmlPreview": "XML",
+    "starSchema": "스타 스키마",
+    "uploadCube": "큐브 업로드",
+    "describeYourCube": "큐브 설명하기",
+    "describeHint": "생성하려는 큐브를 자연어로 설명하세요. 차원, 계층, 측정값을 포함해주세요.",
+    "tryExamples": "예시 사용해보기:",
+    "generateWithAi": "AI로 생성"
+  },
+  "tableGenerator": {
+    "title": "데이터베이스 테이블 생성",
+    "uploadSuccess": "큐브 \"{name}\" 업로드 완료!",
+    "createTablesQuestion": "데이터베이스 테이블과 샘플 데이터를 생성하시겠습니까?",
+    "step1Title": "테이블 DDL 및 샘플 데이터 생성",
+    "step1Desc": "AI가 PostgreSQL 테이블과 현실적인 샘플 데이터를 생성합니다",
+    "sampleRows": "샘플 행 수:",
+    "generateSql": "SQL 생성",
+    "generating": "생성 중...",
+    "streaming": "스트리밍 중...",
+    "generatedSqlLabel": "생성된 SQL:",
+    "step2Title": "SQL 실행",
+    "step2Desc": "PostgreSQL에 테이블을 생성하고 샘플 데이터를 입력합니다",
+    "executeSql": "SQL 실행",
+    "executing": "실행 중...",
+    "tablesCreated": "테이블이 성공적으로 생성되었습니다!",
+    "statementsExecuted": "{success}개 문장 실행됨, {failed}개 실패",
+    "executionFailed": "실행 실패",
+    "startUsingCube": "큐브 사용 시작"
+  },
+  "diagram": {
+    "factTable": "팩트 테이블",
+    "dimensionTables": "차원 테이블",
+    "foreignKeyRelationships": "외래 키 관계"
+  },
+  "placeholders": {
+    "cubeName": "예: SalesCube",
+    "factTable": "예: fact_sales",
+    "dimensionName": "예: Product",
+    "tableName": "예: dim_product",
+    "foreignKey": "예: product_id",
+    "levelName": "레벨 이름",
+    "columnName": "컬럼",
+    "measureName": "측정값 이름"
+  },
+  "aggregators": {
+    "sum": "합계",
+    "count": "개수",
+    "avg": "평균",
+    "min": "최소",
+    "max": "최대",
+    "distinctCount": "고유 개수"
+  }
+}
+
+

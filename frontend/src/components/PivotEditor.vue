@@ -1,9 +1,11 @@
 <script setup>
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useCubeStore } from '../store/cubeStore'
 import draggable from 'vuedraggable'
 import FieldList from './FieldList.vue'
 
+const { t } = useI18n()
 const store = useCubeStore()
 const showSQL = ref(false)
 
@@ -33,21 +35,21 @@ const executeQuery = async () => {
     <!-- Pivot Configuration -->
     <div class="config-panel">
       <div class="config-header">
-        <h3>Pivot Configuration</h3>
+        <h3>{{ t('pivot.configuration') }}</h3>
         <div class="config-actions">
           <button class="btn btn-ghost" @click="showSQL = !showSQL">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="16 18 22 12 16 6"/>
               <polyline points="8 6 2 12 8 18"/>
             </svg>
-            {{ showSQL ? 'Hide' : 'Show' }} SQL
+            {{ t('pivot.showSql') }}
           </button>
           <button class="btn btn-secondary" @click="store.resetPivotConfig">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
               <path d="M3 3v5h5"/>
             </svg>
-            Reset
+            {{ t('common.reset') }}
           </button>
           <button 
             class="btn btn-primary" 
@@ -57,7 +59,7 @@ const executeQuery = async () => {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="5 3 19 12 5 21 5 3"/>
             </svg>
-            Execute
+            {{ t('common.execute') }}
           </button>
         </div>
       </div>
@@ -72,7 +74,7 @@ const executeQuery = async () => {
               <line x1="3" y1="6" x2="21" y2="6"/>
               <line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
-            Rows
+            {{ t('pivot.rows') }}
           </label>
           <draggable
             v-model="store.pivotConfig.rows"
@@ -97,7 +99,7 @@ const executeQuery = async () => {
               <line x1="6" y1="3" x2="6" y2="21"/>
               <line x1="18" y1="3" x2="18" y2="21"/>
             </svg>
-            Columns
+            {{ t('pivot.columns') }}
           </label>
           <draggable
             v-model="store.pivotConfig.columns"
@@ -122,7 +124,7 @@ const executeQuery = async () => {
               <line x1="18" y1="20" x2="18" y2="4"/>
               <line x1="6" y1="20" x2="6" y2="16"/>
             </svg>
-            Measures
+            {{ t('pivot.measures') }}
           </label>
           <draggable
             v-model="store.pivotConfig.measures"
@@ -143,7 +145,7 @@ const executeQuery = async () => {
       <!-- SQL Preview -->
       <div v-if="showSQL && store.generatedSQL" class="sql-preview fade-in">
         <div class="sql-header">
-          <span>Generated SQL</span>
+          <span>{{ t('pivot.generatedSql') }}</span>
           <button class="btn btn-ghost" @click="navigator.clipboard.writeText(store.generatedSQL)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="9" y="9" width="13" height="13" rx="2"/>

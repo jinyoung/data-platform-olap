@@ -1,12 +1,15 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useCubeStore } from './store/cubeStore'
 import SchemaUpload from './components/SchemaUpload.vue'
 import PivotEditor from './components/PivotEditor.vue'
 import NaturalQuery from './components/NaturalQuery.vue'
 import ResultGrid from './components/ResultGrid.vue'
 import CubeModeler from './components/CubeModeler.vue'
+import LanguageSelector from './components/LanguageSelector.vue'
 
+const { t } = useI18n()
 const store = useCubeStore()
 const activeTab = ref('pivot')
 
@@ -45,7 +48,7 @@ onMounted(async () => {
               </linearGradient>
             </defs>
           </svg>
-          <h1>AI Pivot Studio</h1>
+          <h1>{{ t('app.title') }}</h1>
         </div>
       </div>
       
@@ -61,7 +64,7 @@ onMounted(async () => {
               <rect x="14" y="14" width="7" height="7"/>
               <rect x="3" y="14" width="7" height="7"/>
             </svg>
-            Pivot Analysis
+            {{ t('nav.pivotAnalysis') }}
           </button>
           <button 
             :class="['tab-btn', { active: activeTab === 'natural' }]"
@@ -70,7 +73,7 @@ onMounted(async () => {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            Natural Language
+            {{ t('nav.naturalLanguage') }}
           </button>
           <button 
             :class="['tab-btn', { active: activeTab === 'modeler' }]"
@@ -81,12 +84,13 @@ onMounted(async () => {
               <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
               <line x1="12" y1="22.08" x2="12" y2="12"/>
             </svg>
-            Cube Modeler
+            {{ t('nav.cubeModeler') }}
           </button>
         </nav>
       </div>
       
       <div class="header-right">
+        <LanguageSelector />
         <div v-if="store.currentCube" class="cube-badge">
           <span class="cube-icon">◈</span>
           {{ store.currentCube }}
@@ -101,7 +105,7 @@ onMounted(async () => {
         <SchemaUpload />
         
         <div v-if="store.hasCubes" class="cube-selector">
-          <h3>Available Cubes</h3>
+          <h3>{{ t('schema.availableCubes') }}</h3>
           <div class="cube-list">
             <button
               v-for="cube in store.cubes"
@@ -123,8 +127,8 @@ onMounted(async () => {
           <PivotEditor v-if="store.hasCubes" />
           <div v-else class="empty-state">
             <div class="empty-icon">📊</div>
-            <h3>No Schema Loaded</h3>
-            <p>Upload a Mondrian XML schema to get started with pivot analysis.</p>
+            <h3>{{ t('schema.noSchema') }}</h3>
+            <p>{{ t('schema.noSchemaDesc') }}</p>
           </div>
         </div>
         
@@ -133,8 +137,8 @@ onMounted(async () => {
           <NaturalQuery v-if="store.hasCubes" />
           <div v-else class="empty-state">
             <div class="empty-icon">💬</div>
-            <h3>No Schema Loaded</h3>
-            <p>Upload a Mondrian XML schema to use natural language queries.</p>
+            <h3>{{ t('schema.noSchema') }}</h3>
+            <p>{{ t('schema.noSchemaDesc') }}</p>
           </div>
         </div>
         
@@ -165,7 +169,7 @@ onMounted(async () => {
     <div v-if="store.loading" class="loading-overlay">
       <div class="loading">
         <div class="spinner"></div>
-        <span>Processing...</span>
+        <span>{{ t('common.loading') }}</span>
       </div>
     </div>
     
@@ -183,7 +187,7 @@ onMounted(async () => {
           <span>uEngine</span>
         </a>
         <span class="separator">•</span>
-        <span class="product-name">AI Pivot Studio</span>
+        <span class="product-name">{{ t('app.title') }}</span>
       </div>
     </footer>
   </div>
@@ -275,7 +279,9 @@ onMounted(async () => {
 .header-right {
   flex: 1;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: var(--spacing-md);
 }
 
 .cube-badge {

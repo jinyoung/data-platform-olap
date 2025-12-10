@@ -1,0 +1,131 @@
+{
+  "app": {
+    "title": "AI Pivot Studio",
+    "copyright": "© {year} uEngine • AI Pivot Studio"
+  },
+  "nav": {
+    "pivotAnalysis": "Pivot-Analyse",
+    "naturalLanguage": "Natürliche Sprache",
+    "cubeModeler": "Cube-Modellierer"
+  },
+  "common": {
+    "loading": "Wird geladen...",
+    "error": "Fehler",
+    "success": "Erfolg",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "close": "Schließen",
+    "reset": "Zurücksetzen",
+    "execute": "Ausführen",
+    "skip": "Überspringen",
+    "done": "Fertig",
+    "generate": "Generieren",
+    "upload": "Hochladen",
+    "preview": "Vorschau",
+    "name": "Name",
+    "table": "Tabelle",
+    "column": "Spalte",
+    "type": "Typ"
+  },
+  "schema": {
+    "dropZone": "Mondrian XML hier ablegen",
+    "or": "oder",
+    "browseFiles": "Dateien durchsuchen",
+    "pasteXml": "XML einfügen",
+    "loadSample": "Beispielschema laden",
+    "availableCubes": "Verfügbare Cubes",
+    "noSchema": "Kein Schema geladen",
+    "noSchemaDesc": "Laden Sie ein Mondrian XML-Schema hoch, um mit der Pivot-Analyse zu beginnen."
+  },
+  "pivot": {
+    "configuration": "Pivot-Konfiguration",
+    "dimensions": "Dimensionen",
+    "measures": "Kennzahlen",
+    "rows": "Zeilen",
+    "columns": "Spalten",
+    "filters": "Filter",
+    "dropFieldsHere": "Felder hier ablegen",
+    "showSql": "SQL anzeigen",
+    "generatedSql": "Generiertes SQL",
+    "queryResults": "Abfrageergebnisse",
+    "noResults": "Keine Ergebnisse anzuzeigen",
+    "executeQuery": "Abfrage ausführen, um Ergebnisse zu sehen"
+  },
+  "nlQuery": {
+    "title": "Natürlichsprachige Abfrage",
+    "placeholder": "Stellen Sie eine Frage zu Ihren Daten in natürlicher Sprache...",
+    "examples": "Beispielfragen:",
+    "example1": "Zeige mir den Gesamtumsatz nach Produktkategorie für 2024",
+    "example2": "Was sind die Top 5 Produkte nach Umsatz?",
+    "example3": "Vergleiche die vierteljährlichen Verkaufstrends",
+    "askQuestion": "Frage stellen"
+  },
+  "modeler": {
+    "visualModeler": "Visueller Modellierer",
+    "aiGenerator": "AI-Generator",
+    "cubeDefinition": "Cube-Definition",
+    "cubeName": "Cube-Name",
+    "factTable": "Faktentabelle",
+    "foreignKey": "Fremdschlüssel",
+    "hierarchyLevels": "Hierarchieebenen",
+    "levelName": "Ebenenname",
+    "addDimension": "Dimension hinzufügen",
+    "addMeasure": "Kennzahl hinzufügen",
+    "addLevel": "+ Ebene hinzufügen",
+    "aggregator": "Aggregator",
+    "xmlPreview": "XML",
+    "starSchema": "Sternschema",
+    "uploadCube": "Cube hochladen",
+    "describeYourCube": "Beschreiben Sie Ihren Cube",
+    "describeHint": "Beschreiben Sie den Cube, den Sie erstellen möchten, in natürlicher Sprache. Inkludieren Sie Dimensionen, Hierarchien und Kennzahlen.",
+    "tryExamples": "Beispiele ausprobieren:",
+    "generateWithAi": "Mit AI generieren"
+  },
+  "tableGenerator": {
+    "title": "Datenbanktabellen erstellen",
+    "uploadSuccess": "Cube \"{name}\" erfolgreich hochgeladen!",
+    "createTablesQuestion": "Möchten Sie die Datenbanktabellen und Beispieldaten erstellen?",
+    "step1Title": "Tabellen-DDL und Beispieldaten generieren",
+    "step1Desc": "AI erstellt PostgreSQL-Tabellen und realistische Beispieldaten",
+    "sampleRows": "Beispielzeilen:",
+    "generateSql": "SQL generieren",
+    "generating": "Wird generiert...",
+    "streaming": "Streaming...",
+    "generatedSqlLabel": "Generiertes SQL:",
+    "step2Title": "SQL ausführen",
+    "step2Desc": "Tabellen erstellen und Beispieldaten in PostgreSQL einfügen",
+    "executeSql": "SQL ausführen",
+    "executing": "Wird ausgeführt...",
+    "tablesCreated": "Tabellen erfolgreich erstellt!",
+    "statementsExecuted": "{success} Anweisungen ausgeführt, {failed} fehlgeschlagen",
+    "executionFailed": "Ausführung fehlgeschlagen",
+    "startUsingCube": "Cube verwenden"
+  },
+  "diagram": {
+    "factTable": "Faktentabelle",
+    "dimensionTables": "Dimensionstabellen",
+    "foreignKeyRelationships": "Fremdschlüsselbeziehungen"
+  },
+  "placeholders": {
+    "cubeName": "z.B. SalesCube",
+    "factTable": "z.B. fact_sales",
+    "dimensionName": "z.B. Product",
+    "tableName": "z.B. dim_product",
+    "foreignKey": "z.B. product_id",
+    "levelName": "Ebenenname",
+    "columnName": "Spalte",
+    "measureName": "Kennzahlname"
+  },
+  "aggregators": {
+    "sum": "SUMME",
+    "count": "ANZAHL",
+    "avg": "DURCHSCHNITT",
+    "min": "MIN",
+    "max": "MAX",
+    "distinctCount": "EINDEUTIGE ANZAHL"
+  }
+}
+
+

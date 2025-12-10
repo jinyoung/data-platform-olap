@@ -1,0 +1,131 @@
+{
+  "app": {
+    "title": "AI 数据透视工作室",
+    "copyright": "© {year} uEngine • AI 数据透视工作室"
+  },
+  "nav": {
+    "pivotAnalysis": "透视分析",
+    "naturalLanguage": "自然语言",
+    "cubeModeler": "多维数据集建模器"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "close": "关闭",
+    "reset": "重置",
+    "execute": "执行",
+    "skip": "跳过",
+    "done": "完成",
+    "generate": "生成",
+    "upload": "上传",
+    "preview": "预览",
+    "name": "名称",
+    "table": "表",
+    "column": "列",
+    "type": "类型"
+  },
+  "schema": {
+    "dropZone": "将Mondrian XML拖放到此处",
+    "or": "或",
+    "browseFiles": "浏览文件",
+    "pasteXml": "粘贴XML",
+    "loadSample": "加载示例架构",
+    "availableCubes": "可用的多维数据集",
+    "noSchema": "未加载架构",
+    "noSchemaDesc": "上传Mondrian XML架构以开始透视分析。"
+  },
+  "pivot": {
+    "configuration": "透视配置",
+    "dimensions": "维度",
+    "measures": "度量",
+    "rows": "行",
+    "columns": "列",
+    "filters": "筛选器",
+    "dropFieldsHere": "将字段拖放到此处",
+    "showSql": "显示SQL",
+    "generatedSql": "生成的SQL",
+    "queryResults": "查询结果",
+    "noResults": "没有结果显示",
+    "executeQuery": "执行查询以查看结果"
+  },
+  "nlQuery": {
+    "title": "自然语言查询",
+    "placeholder": "用自然语言询问您的数据问题...",
+    "examples": "示例问题：",
+    "example1": "显示2024年按产品类别的总销售额",
+    "example2": "按收入排名前5的产品是什么？",
+    "example3": "比较季度销售趋势",
+    "askQuestion": "提问"
+  },
+  "modeler": {
+    "visualModeler": "可视化建模器",
+    "aiGenerator": "AI生成器",
+    "cubeDefinition": "多维数据集定义",
+    "cubeName": "多维数据集名称",
+    "factTable": "事实表",
+    "foreignKey": "外键",
+    "hierarchyLevels": "层次级别",
+    "levelName": "级别名称",
+    "addDimension": "添加维度",
+    "addMeasure": "添加度量",
+    "addLevel": "+ 添加级别",
+    "aggregator": "聚合器",
+    "xmlPreview": "XML",
+    "starSchema": "星型架构",
+    "uploadCube": "上传多维数据集",
+    "describeYourCube": "描述您的多维数据集",
+    "describeHint": "用自然语言描述您要创建的多维数据集。包括维度、层次结构和度量。",
+    "tryExamples": "尝试这些示例：",
+    "generateWithAi": "使用AI生成"
+  },
+  "tableGenerator": {
+    "title": "创建数据库表",
+    "uploadSuccess": "多维数据集 \"{name}\" 上传成功！",
+    "createTablesQuestion": "您想创建数据库表并生成示例数据吗？",
+    "step1Title": "生成表DDL和示例数据",
+    "step1Desc": "AI将创建PostgreSQL表和真实的示例数据",
+    "sampleRows": "示例行数：",
+    "generateSql": "生成SQL",
+    "generating": "生成中...",
+    "streaming": "流式传输中...",
+    "generatedSqlLabel": "生成的SQL：",
+    "step2Title": "执行SQL",
+    "step2Desc": "创建表并将示例数据插入PostgreSQL",
+    "executeSql": "执行SQL",
+    "executing": "执行中...",
+    "tablesCreated": "表创建成功！",
+    "statementsExecuted": "执行了{success}条语句，{failed}条失败",
+    "executionFailed": "执行失败",
+    "startUsingCube": "开始使用多维数据集"
+  },
+  "diagram": {
+    "factTable": "事实表",
+    "dimensionTables": "维度表",
+    "foreignKeyRelationships": "外键关系"
+  },
+  "placeholders": {
+    "cubeName": "例如：SalesCube",
+    "factTable": "例如：fact_sales",
+    "dimensionName": "例如：Product",
+    "tableName": "例如：dim_product",
+    "foreignKey": "例如：product_id",
+    "levelName": "级别名称",
+    "columnName": "列",
+    "measureName": "度量名称"
+  },
+  "aggregators": {
+    "sum": "求和",
+    "count": "计数",
+    "avg": "平均值",
+    "min": "最小值",
+    "max": "最大值",
+    "distinctCount": "去重计数"
+  }
+}
+
+

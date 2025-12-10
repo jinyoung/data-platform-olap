@@ -1,0 +1,131 @@
+{
+  "app": {
+    "title": "AI ピボットスタジオ",
+    "copyright": "© {year} uEngine • AI ピボットスタジオ"
+  },
+  "nav": {
+    "pivotAnalysis": "ピボット分析",
+    "naturalLanguage": "自然言語",
+    "cubeModeler": "キューブモデラー"
+  },
+  "common": {
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "success": "成功",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "delete": "削除",
+    "edit": "編集",
+    "close": "閉じる",
+    "reset": "リセット",
+    "execute": "実行",
+    "skip": "スキップ",
+    "done": "完了",
+    "generate": "生成",
+    "upload": "アップロード",
+    "preview": "プレビュー",
+    "name": "名前",
+    "table": "テーブル",
+    "column": "カラム",
+    "type": "タイプ"
+  },
+  "schema": {
+    "dropZone": "Mondrian XMLをここにドロップ",
+    "or": "または",
+    "browseFiles": "ファイルを参照",
+    "pasteXml": "XMLを貼り付け",
+    "loadSample": "サンプルスキーマを読み込む",
+    "availableCubes": "利用可能なキューブ",
+    "noSchema": "スキーマが読み込まれていません",
+    "noSchemaDesc": "ピボット分析を開始するにはMondrian XMLスキーマをアップロードしてください。"
+  },
+  "pivot": {
+    "configuration": "ピボット構成",
+    "dimensions": "ディメンション",
+    "measures": "メジャー",
+    "rows": "行",
+    "columns": "列",
+    "filters": "フィルター",
+    "dropFieldsHere": "ここにフィールドをドロップ",
+    "showSql": "SQLを表示",
+    "generatedSql": "生成されたSQL",
+    "queryResults": "クエリ結果",
+    "noResults": "表示する結果がありません",
+    "executeQuery": "クエリを実行して結果を表示"
+  },
+  "nlQuery": {
+    "title": "自然言語クエリ",
+    "placeholder": "データについて自然言語で質問してください...",
+    "examples": "質問の例：",
+    "example1": "2024年の製品カテゴリ別の総売上を表示",
+    "example2": "売上上位5製品は？",
+    "example3": "四半期ごとの売上傾向を比較",
+    "askQuestion": "質問する"
+  },
+  "modeler": {
+    "visualModeler": "ビジュアルモデラー",
+    "aiGenerator": "AIジェネレーター",
+    "cubeDefinition": "キューブ定義",
+    "cubeName": "キューブ名",
+    "factTable": "ファクトテーブル",
+    "foreignKey": "外部キー",
+    "hierarchyLevels": "階層レベル",
+    "levelName": "レベル名",
+    "addDimension": "ディメンションを追加",
+    "addMeasure": "メジャーを追加",
+    "addLevel": "+ レベルを追加",
+    "aggregator": "集計関数",
+    "xmlPreview": "XML",
+    "starSchema": "スタースキーマ",
+    "uploadCube": "キューブをアップロード",
+    "describeYourCube": "キューブを説明",
+    "describeHint": "作成したいキューブを自然言語で説明してください。ディメンション、階層、メジャーを含めてください。",
+    "tryExamples": "例を試す：",
+    "generateWithAi": "AIで生成"
+  },
+  "tableGenerator": {
+    "title": "データベーステーブルを作成",
+    "uploadSuccess": "キューブ \"{name}\" のアップロードが完了しました！",
+    "createTablesQuestion": "データベーステーブルとサンプルデータを作成しますか？",
+    "step1Title": "テーブルDDLとサンプルデータを生成",
+    "step1Desc": "AIがPostgreSQLテーブルとリアルなサンプルデータを作成します",
+    "sampleRows": "サンプル行数：",
+    "generateSql": "SQLを生成",
+    "generating": "生成中...",
+    "streaming": "ストリーミング中...",
+    "generatedSqlLabel": "生成されたSQL：",
+    "step2Title": "SQLを実行",
+    "step2Desc": "テーブルを作成しPostgreSQLにサンプルデータを挿入",
+    "executeSql": "SQLを実行",
+    "executing": "実行中...",
+    "tablesCreated": "テーブルが正常に作成されました！",
+    "statementsExecuted": "{success}件のステートメントを実行、{failed}件失敗",
+    "executionFailed": "実行に失敗しました",
+    "startUsingCube": "キューブの使用を開始"
+  },
+  "diagram": {
+    "factTable": "ファクトテーブル",
+    "dimensionTables": "ディメンションテーブル",
+    "foreignKeyRelationships": "外部キー関係"
+  },
+  "placeholders": {
+    "cubeName": "例：SalesCube",
+    "factTable": "例：fact_sales",
+    "dimensionName": "例：Product",
+    "tableName": "例：dim_product",
+    "foreignKey": "例：product_id",
+    "levelName": "レベル名",
+    "columnName": "カラム",
+    "measureName": "メジャー名"
+  },
+  "aggregators": {
+    "sum": "合計",
+    "count": "カウント",
+    "avg": "平均",
+    "min": "最小",
+    "max": "最大",
+    "distinctCount": "個別カウント"
+  }
+}
+
+

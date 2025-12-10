@@ -1,0 +1,131 @@
+{
+  "app": {
+    "title": "AI Pivot Studio",
+    "copyright": "© {year} uEngine • AI Pivot Studio"
+  },
+  "nav": {
+    "pivotAnalysis": "Pivot Analysis",
+    "naturalLanguage": "Natural Language",
+    "cubeModeler": "Cube Modeler"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "reset": "Reset",
+    "execute": "Execute",
+    "skip": "Skip",
+    "done": "Done",
+    "generate": "Generate",
+    "upload": "Upload",
+    "preview": "Preview",
+    "name": "Name",
+    "table": "Table",
+    "column": "Column",
+    "type": "Type"
+  },
+  "schema": {
+    "dropZone": "Drop Mondrian XML here",
+    "or": "or",
+    "browseFiles": "Browse Files",
+    "pasteXml": "Paste XML",
+    "loadSample": "Load Sample Schema",
+    "availableCubes": "Available Cubes",
+    "noSchema": "No Schema Loaded",
+    "noSchemaDesc": "Upload a Mondrian XML schema to get started with pivot analysis."
+  },
+  "pivot": {
+    "configuration": "Pivot Configuration",
+    "dimensions": "Dimensions",
+    "measures": "Measures",
+    "rows": "Rows",
+    "columns": "Columns",
+    "filters": "Filters",
+    "dropFieldsHere": "Drop fields here",
+    "showSql": "Show SQL",
+    "generatedSql": "Generated SQL",
+    "queryResults": "Query Results",
+    "noResults": "No results to display",
+    "executeQuery": "Execute query to see results"
+  },
+  "nlQuery": {
+    "title": "Natural Language Query",
+    "placeholder": "Ask a question about your data in natural language...",
+    "examples": "Example questions:",
+    "example1": "Show me total sales by product category for 2024",
+    "example2": "What are the top 5 products by revenue?",
+    "example3": "Compare quarterly sales trends",
+    "askQuestion": "Ask Question"
+  },
+  "modeler": {
+    "visualModeler": "Visual Modeler",
+    "aiGenerator": "AI Generator",
+    "cubeDefinition": "Cube Definition",
+    "cubeName": "Cube Name",
+    "factTable": "Fact Table",
+    "foreignKey": "Foreign Key",
+    "hierarchyLevels": "Hierarchy Levels",
+    "levelName": "Level Name",
+    "addDimension": "Add Dimension",
+    "addMeasure": "Add Measure",
+    "addLevel": "+ Add Level",
+    "aggregator": "Aggregator",
+    "xmlPreview": "XML",
+    "starSchema": "Star Schema",
+    "uploadCube": "Upload Cube",
+    "describeYourCube": "Describe Your Cube",
+    "describeHint": "Describe the cube you want to create in natural language. Include dimensions, hierarchies, and measures.",
+    "tryExamples": "Try these examples:",
+    "generateWithAi": "Generate with AI"
+  },
+  "tableGenerator": {
+    "title": "Create Database Tables",
+    "uploadSuccess": "Cube \"{name}\" uploaded successfully!",
+    "createTablesQuestion": "Would you like to create the database tables and generate sample data?",
+    "step1Title": "Generate Table DDL & Sample Data",
+    "step1Desc": "AI will create PostgreSQL tables and realistic sample data",
+    "sampleRows": "Sample rows:",
+    "generateSql": "Generate SQL",
+    "generating": "Generating...",
+    "streaming": "Streaming...",
+    "generatedSqlLabel": "Generated SQL:",
+    "step2Title": "Execute SQL",
+    "step2Desc": "Create tables and insert sample data into PostgreSQL",
+    "executeSql": "Execute SQL",
+    "executing": "Executing...",
+    "tablesCreated": "Tables created successfully!",
+    "statementsExecuted": "{success} statements executed, {failed} failed",
+    "executionFailed": "Execution failed",
+    "startUsingCube": "Start Using Cube"
+  },
+  "diagram": {
+    "factTable": "Fact Table",
+    "dimensionTables": "Dimension Tables",
+    "foreignKeyRelationships": "Foreign Key Relationships"
+  },
+  "placeholders": {
+    "cubeName": "e.g., SalesCube",
+    "factTable": "e.g., fact_sales",
+    "dimensionName": "e.g., Product",
+    "tableName": "e.g., dim_product",
+    "foreignKey": "e.g., product_id",
+    "levelName": "Level Name",
+    "columnName": "Column",
+    "measureName": "Measure Name"
+  },
+  "aggregators": {
+    "sum": "SUM",
+    "count": "COUNT",
+    "avg": "AVG",
+    "min": "MIN",
+    "max": "MAX",
+    "distinctCount": "DISTINCT COUNT"
+  }
+}
+
+

@@ -1,7 +1,9 @@
 <script setup>
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useCubeStore } from '../store/cubeStore'
 
+const { t } = useI18n()
 const store = useCubeStore()
 const isDragging = ref(false)
 const showTextInput = ref(false)
@@ -100,16 +102,16 @@ const loadSampleSchema = async () => {
           <line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
       </div>
-      <p class="upload-text">Drop Mondrian XML here</p>
-      <p class="upload-hint">or</p>
+      <p class="upload-text">{{ t('schema.dropZone') }}</p>
+      <p class="upload-hint">{{ t('schema.or') }}</p>
       
       <div class="upload-actions">
         <label class="btn btn-primary">
           <input type="file" accept=".xml" @change="handleFileSelect" hidden />
-          Browse Files
+          {{ t('schema.browseFiles') }}
         </label>
         <button class="btn btn-secondary" @click="showTextInput = !showTextInput">
-          Paste XML
+          {{ t('schema.pasteXml') }}
         </button>
       </div>
     </div>
@@ -117,19 +119,19 @@ const loadSampleSchema = async () => {
     <!-- Text Input Modal -->
     <div v-if="showTextInput" class="text-input-panel fade-in">
       <div class="panel-header">
-        <h4>Paste XML Schema</h4>
+        <h4>{{ t('schema.pasteXml') }}</h4>
         <button class="btn btn-ghost" @click="showTextInput = false">×</button>
       </div>
       <textarea 
         v-model="xmlText"
         class="textarea xml-input"
-        placeholder="Paste your Mondrian XML schema here..."
+        :placeholder="t('schema.pasteXml') + '...'"
         rows="10"
       ></textarea>
       <div class="panel-actions">
-        <button class="btn btn-secondary" @click="showTextInput = false">Cancel</button>
+        <button class="btn btn-secondary" @click="showTextInput = false">{{ t('common.cancel') }}</button>
         <button class="btn btn-primary" @click="handleTextUpload" :disabled="!xmlText.trim()">
-          Upload Schema
+          {{ t('common.upload') }}
         </button>
       </div>
     </div>
@@ -143,7 +145,7 @@ const loadSampleSchema = async () => {
         <line x1="16" y1="17" x2="8" y2="17"/>
         <polyline points="10 9 9 9 8 9"/>
       </svg>
-      Load Sample Schema
+      {{ t('schema.loadSample') }}
     </button>
   </div>
 </template>

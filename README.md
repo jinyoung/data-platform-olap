@@ -2,6 +2,12 @@
 
 A modern AI-powered pivot analysis platform that supports Mondrian XML schemas and natural language queries.
 
+## Intro Videos
+
+- [AI Pivot Studio Demo](https://youtu.be/a7EvGdzJ3CQ)
+- [User Journey Overview](https://youtu.be/Mz-cKirAxxw)
+- [Technical Deep Dive](https://youtu.be/UAy3BdgiViE)
+
 ![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D?logo=vue.js)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)
 ![LangChain](https://img.shields.io/badge/LangChain-LangGraph-1C3C3C)

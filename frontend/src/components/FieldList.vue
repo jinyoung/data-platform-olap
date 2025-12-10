@@ -1,7 +1,9 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { useCubeStore } from '../store/cubeStore'
 import draggable from 'vuedraggable'
 
+const { t } = useI18n()
 const store = useCubeStore()
 
 const emit = defineEmits(['dragStart'])
@@ -21,7 +23,7 @@ const handleDragStart = (item, type) => {
           <path d="M3 9h18"/>
           <path d="M9 21V9"/>
         </svg>
-        Dimensions
+        {{ t('pivot.dimensions') }}
       </h4>
       
       <div class="field-items">
@@ -58,7 +60,7 @@ const handleDragStart = (item, type) => {
           <line x1="18" y1="20" x2="18" y2="4"/>
           <line x1="6" y1="20" x2="6" y2="16"/>
         </svg>
-        Measures
+        {{ t('pivot.measures') }}
       </h4>
       
       <draggable
