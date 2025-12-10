@@ -151,6 +151,24 @@ onMounted(async () => {
         <span>Processing...</span>
       </div>
     </div>
+    
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <span class="copyright">© {{ new Date().getFullYear() }} </span>
+        <a href="https://www.uengine.io" target="_blank" rel="noopener noreferrer" class="footer-link">
+          <svg class="uengine-logo" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="M8 12a4 4 0 0 0 8 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="9" cy="9" r="1.5" fill="currentColor"/>
+            <circle cx="15" cy="9" r="1.5" fill="currentColor"/>
+          </svg>
+          <span>uEngine</span>
+        </a>
+        <span class="separator">•</span>
+        <span class="product-name">AI Pivot Studio</span>
+      </div>
+    </footer>
   </div>
 </template>
 
@@ -400,5 +418,54 @@ onMounted(async () => {
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(4px);
+}
+
+/* Footer */
+.app-footer {
+  margin-top: auto;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.copyright {
+  color: var(--text-muted);
+}
+
+.footer-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.footer-link:hover {
+  color: var(--accent-secondary);
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.uengine-logo {
+  color: inherit;
+}
+
+.separator {
+  color: var(--border-color);
+}
+
+.product-name {
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 </style>
