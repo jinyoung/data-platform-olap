@@ -19,6 +19,15 @@ const measures = ref([])
 const promptText = ref('')
 const generatedXML = ref('')
 
+// Table Generation State
+const showTableGenerator = ref(false)
+const uploadedCubeName = ref('')
+const generatedSQL = ref('')
+const sampleRowCount = ref(100)
+const generatingTables = ref(false)
+const executingSQL = ref(false)
+const executionResult = ref(null)
+
 // Add new dimension
 const addDimension = () => {
   dimensions.value.push({
@@ -133,23 +142,105 @@ const uploadCube = async () => {
   success.value = null
   
   try {
-    await store.uploadSchemaText(xml)
-    success.value = 'Cube uploaded successfully!'
+    const result = await store.uploadSchemaText(xml)
     
-    // Reset form on success
-    if (activeTab.value === 'visual') {
-      cubeName.value = ''
-      factTable.value = ''
-      dimensions.value = []
-      measures.value = []
+    // Get the cube name from the result
+    if (result.cubes && result.cubes.length > 0) {
+      uploadedCubeName.value = result.cubes[0].name
+      showTableGenerator.value = true
+      success.value = `Cube "${uploadedCubeName.value}" uploaded successfully! Would you like to create database tables and sample data?`
     } else {
-      promptText.value = ''
-      generatedXML.value = ''
+      success.value = 'Cube uploaded successfully!'
     }
+    
   } catch (e) {
     error.value = e.response?.data?.detail || e.message || 'Failed to upload cube'
   } finally {
     loading.value = false
+  }
+}
+
+// Generate table DDL and sample data
+const generateTables = async () => {
+  if (!uploadedCubeName.value) {
+    error.value = 'No cube selected for table generation'
+    return
+  }
+  
+  generatingTables.value = true
+  error.value = null
+  generatedSQL.value = ''
+  executionResult.value = null
+  
+  try {
+    const response = await fetch(`http://localhost:8000/api/cube/${uploadedCubeName.value}/generate-tables?sample_rows=${sampleRowCount.value}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    
+    const data = await response.json()
+    
+    if (data.error) {
+      error.value = data.error
+    } else {
+      generatedSQL.value = data.sql
+    }
+  } catch (e) {
+    error.value = e.message || 'Failed to generate tables'
+  } finally {
+    generatingTables.value = false
+  }
+}
+
+// Execute the generated SQL
+const executeSQL = async () => {
+  if (!generatedSQL.value) {
+    error.value = 'No SQL to execute'
+    return
+  }
+  
+  executingSQL.value = true
+  error.value = null
+  executionResult.value = null
+  
+  try {
+    const response = await fetch('http://localhost:8000/api/cube/execute-sql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: generatedSQL.value })
+    })
+    
+    const data = await response.json()
+    executionResult.value = data
+    
+    if (data.success) {
+      success.value = `Tables created successfully! ${data.statements_executed} statements executed.`
+    } else {
+      error.value = data.error || 'Failed to execute SQL'
+    }
+  } catch (e) {
+    error.value = e.message || 'Failed to execute SQL'
+  } finally {
+    executingSQL.value = false
+  }
+}
+
+// Close table generator and reset
+const closeTableGenerator = () => {
+  showTableGenerator.value = false
+  uploadedCubeName.value = ''
+  generatedSQL.value = ''
+  executionResult.value = null
+  
+  // Reset form
+  if (activeTab.value === 'visual') {
+    cubeName.value = ''
+    factTable.value = ''
+    dimensions.value = []
+    measures.value = []
+  } else {
+    promptText.value = ''
+    generatedXML.value = ''
   }
 }
 
@@ -264,9 +355,123 @@ const useSamplePrompt = (prompt) => {
       <span>⚠️ {{ error }}</span>
       <button @click="error = null">×</button>
     </div>
-    <div v-if="success" class="message success">
+    <div v-if="success && !showTableGenerator" class="message success">
       <span>✅ {{ success }}</span>
       <button @click="success = null">×</button>
+    </div>
+    
+    <!-- Table Generator Modal -->
+    <div v-if="showTableGenerator" class="table-generator-overlay">
+      <div class="table-generator-modal">
+        <div class="modal-header">
+          <h3>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            </svg>
+            Create Database Tables
+          </h3>
+          <button class="close-btn" @click="closeTableGenerator">×</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="success-banner">
+            <span class="success-icon">✅</span>
+            <div>
+              <strong>Cube "{{ uploadedCubeName }}" uploaded successfully!</strong>
+              <p>Would you like to create the database tables and generate sample data?</p>
+            </div>
+          </div>
+          
+          <!-- Step 1: Generate SQL -->
+          <div class="generator-step">
+            <div class="step-header">
+              <span class="step-number">1</span>
+              <div>
+                <h4>Generate Table DDL & Sample Data</h4>
+                <p>AI will create PostgreSQL tables and realistic sample data</p>
+              </div>
+            </div>
+            
+            <div class="step-controls">
+              <div class="row-count-input">
+                <label>Sample rows:</label>
+                <input type="number" v-model="sampleRowCount" min="10" max="1000" class="input" />
+              </div>
+              <button 
+                class="btn btn-primary" 
+                @click="generateTables" 
+                :disabled="generatingTables"
+              >
+                <svg v-if="!generatingTables" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                <span v-if="generatingTables" class="spinner"></span>
+                {{ generatingTables ? 'Generating...' : 'Generate SQL' }}
+              </button>
+            </div>
+            
+            <!-- Generated SQL Preview -->
+            <div v-if="generatedSQL" class="sql-preview-container">
+              <div class="preview-label">Generated SQL:</div>
+              <pre class="sql-preview">{{ generatedSQL }}</pre>
+            </div>
+          </div>
+          
+          <!-- Step 2: Execute SQL -->
+          <div v-if="generatedSQL" class="generator-step">
+            <div class="step-header">
+              <span class="step-number">2</span>
+              <div>
+                <h4>Execute SQL</h4>
+                <p>Create tables and insert sample data into PostgreSQL</p>
+              </div>
+            </div>
+            
+            <div class="step-controls">
+              <button 
+                class="btn btn-success" 
+                @click="executeSQL" 
+                :disabled="executingSQL"
+              >
+                <svg v-if="!executingSQL" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <span v-if="executingSQL" class="spinner"></span>
+                {{ executingSQL ? 'Executing...' : 'Execute SQL' }}
+              </button>
+            </div>
+            
+            <!-- Execution Result -->
+            <div v-if="executionResult" class="execution-result" :class="{ success: executionResult.success, error: !executionResult.success }">
+              <div v-if="executionResult.success" class="result-success">
+                <span class="result-icon">✅</span>
+                <div>
+                  <strong>Tables created successfully!</strong>
+                  <p>{{ executionResult.statements_executed }} statements executed, {{ executionResult.statements_failed }} failed</p>
+                </div>
+              </div>
+              <div v-else class="result-error">
+                <span class="result-icon">❌</span>
+                <div>
+                  <strong>Execution failed</strong>
+                  <p>{{ executionResult.error }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="closeTableGenerator">
+            {{ executionResult?.success ? 'Done' : 'Skip' }}
+          </button>
+          <button v-if="executionResult?.success" class="btn btn-primary" @click="closeTableGenerator">
+            Start Using Cube
+          </button>
+        </div>
+      </div>
     </div>
     
     <div class="modeler-content">
@@ -562,6 +767,264 @@ const useSamplePrompt = (prompt) => {
   opacity: 1;
 }
 
+/* Table Generator Modal */
+.table-generator-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 23, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  padding: var(--spacing-lg);
+}
+
+.table-generator-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 1.125rem;
+  color: var(--accent-primary);
+}
+
+.close-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.close-btn:hover {
+  background: var(--accent-error);
+  border-color: var(--accent-error);
+  color: white;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.success-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid var(--accent-success);
+  border-radius: var(--radius-md);
+}
+
+.success-icon {
+  font-size: 1.5rem;
+}
+
+.success-banner strong {
+  color: var(--accent-success);
+}
+
+.success-banner p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-top: var(--spacing-xs);
+}
+
+.generator-step {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.step-number {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-primary);
+  color: white;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.step-header h4 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.step-header p {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.step-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.row-count-input {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.row-count-input label {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.row-count-input input {
+  width: 80px;
+}
+
+.sql-preview-container {
+  margin-top: var(--spacing-md);
+}
+
+.preview-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-xs);
+}
+
+.sql-preview {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.btn-success {
+  background: var(--accent-success);
+  color: white;
+  border: none;
+}
+
+.btn-success:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.execution-result {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+}
+
+.execution-result.success {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid var(--accent-success);
+}
+
+.execution-result.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--accent-error);
+}
+
+.result-success,
+.result-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+.result-icon {
+  font-size: 1.25rem;
+}
+
+.result-success strong {
+  color: var(--accent-success);
+}
+
+.result-error strong {
+  color: var(--accent-error);
+}
+
+.result-success p,
+.result-error p {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-color);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Modeler Content */
 .modeler-content {
   flex: 1;
@@ -821,7 +1284,7 @@ const useSamplePrompt = (prompt) => {
   color: var(--text-secondary);
 }
 
-.xml-preview {
+.xml-preview-panel .xml-preview {
   flex: 1;
   padding: var(--spacing-md);
   margin: 0;
@@ -831,6 +1294,9 @@ const useSamplePrompt = (prompt) => {
   line-height: 1.6;
   color: var(--text-secondary);
   background: var(--bg-primary);
+  max-height: none;
+  white-space: pre;
+  word-break: normal;
 }
 
 /* Prompt Generator */
@@ -937,4 +1403,3 @@ const useSamplePrompt = (prompt) => {
   max-height: 400px;
 }
 </style>
-

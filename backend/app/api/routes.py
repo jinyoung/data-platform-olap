@@ -323,6 +323,158 @@ EXAMPLE OUTPUT:
         return {"xml": None, "error": str(e)}
 
 
+# ============== Table & Sample Data Generation ==============
+
+class GenerateTablesRequest(BaseModel):
+    """Request for generating table DDL and sample data."""
+    cube_name: str
+    sample_rows: int = 100
+
+
+@router.post("/cube/{cube_name}/generate-tables")
+async def generate_table_ddl(cube_name: str, sample_rows: int = 100):
+    """
+    Generate SQL DDL statements to create tables for a cube.
+    Also generates sample data INSERT statements.
+    """
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import SystemMessage, HumanMessage
+    from ..core.config import get_settings
+    
+    cube = metadata_store.get_cube(cube_name)
+    if not cube:
+        raise HTTPException(status_code=404, detail=f"Cube '{cube_name}' not found")
+    
+    settings = get_settings()
+    schema_desc = metadata_store.get_schema_description(cube_name)
+    
+    system_prompt = f"""You are an expert PostgreSQL database administrator.
+Generate SQL statements to create the tables and sample data for an OLAP cube.
+
+RULES:
+1. Generate CREATE TABLE statements with appropriate data types
+2. Use SERIAL PRIMARY KEY for id columns
+3. Add FOREIGN KEY constraints on fact tables referencing dimension tables
+4. Generate realistic sample data that makes sense for the business context
+5. Generate exactly {sample_rows} rows for the fact table
+6. Generate appropriate dimension data (10-50 rows per dimension)
+7. Ensure referential integrity in sample data
+8. Use Korean or English data depending on the context
+9. Include CREATE INDEX statements for foreign keys
+
+OUTPUT FORMAT:
+Return ONLY valid PostgreSQL SQL statements.
+Start with DROP TABLE IF EXISTS statements (in correct order for FK constraints).
+Then CREATE TABLE statements for dimensions first, then fact table.
+Then INSERT statements for dimensions first, then fact table.
+Do not include any explanations or markdown code blocks.
+"""
+
+    try:
+        llm = ChatOpenAI(
+            model=settings.openai_model,
+            api_key=settings.openai_api_key,
+            temperature=0.3
+        )
+        
+        response = await llm.ainvoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"""Generate PostgreSQL DDL and sample data for this cube:
+
+{schema_desc}
+
+Generate {sample_rows} rows of sample fact data with realistic values.""")
+        ])
+        
+        sql_content = response.content.strip()
+        
+        # Clean up any markdown formatting
+        if sql_content.startswith("```"):
+            lines = sql_content.split("\n")
+            sql_content = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+        
+        return {"sql": sql_content, "error": None}
+        
+    except Exception as e:
+        return {"sql": None, "error": str(e)}
+
+
+class ExecuteSQLRequest(BaseModel):
+    """Request for executing SQL statements."""
+    sql: str
+
+
+@router.post("/cube/execute-sql")
+async def execute_sql_statements(request: ExecuteSQLRequest):
+    """
+    Execute SQL statements against the database.
+    Used for creating tables and inserting sample data.
+    """
+    import asyncpg
+    from ..core.config import get_settings
+    
+    settings = get_settings()
+    
+    try:
+        # Connect to database
+        conn = await asyncpg.connect(settings.database_url)
+        
+        try:
+            # Split SQL into individual statements and execute
+            # Handle multi-statement execution
+            statements = []
+            current_stmt = []
+            in_function = False
+            
+            for line in request.sql.split('\n'):
+                stripped = line.strip()
+                
+                # Track if we're inside a function/DO block
+                if stripped.upper().startswith('DO $$') or stripped.upper().startswith('CREATE FUNCTION'):
+                    in_function = True
+                if in_function and stripped == '$$;':
+                    in_function = False
+                    current_stmt.append(line)
+                    statements.append('\n'.join(current_stmt))
+                    current_stmt = []
+                    continue
+                
+                current_stmt.append(line)
+                
+                # If not in function and line ends with semicolon, end statement
+                if not in_function and stripped.endswith(';'):
+                    stmt = '\n'.join(current_stmt).strip()
+                    if stmt and stmt != ';':
+                        statements.append(stmt)
+                    current_stmt = []
+            
+            # Execute each statement
+            results = []
+            for stmt in statements:
+                if stmt.strip():
+                    try:
+                        await conn.execute(stmt)
+                        results.append({"statement": stmt[:100] + "..." if len(stmt) > 100 else stmt, "status": "success"})
+                    except Exception as stmt_error:
+                        results.append({"statement": stmt[:100] + "..." if len(stmt) > 100 else stmt, "status": "error", "error": str(stmt_error)})
+            
+            return {
+                "success": True,
+                "statements_executed": len([r for r in results if r["status"] == "success"]),
+                "statements_failed": len([r for r in results if r["status"] == "error"]),
+                "details": results
+            }
+            
+        finally:
+            await conn.close()
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 # ============== Health Check ==============
 
 @router.get("/health")
