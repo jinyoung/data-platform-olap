@@ -50,35 +50,37 @@ const measureKeys = computed(() => {
 const columnHeaders = computed(() => {
   if (!hasPivotColumns.value || !props.result?.rows) return []
   
-  // Group by column hierarchy
   const headers = []
+  const numMeasures = measureKeys.value.length || 1
   
-  // For each column level, get unique values
+  // For each column level, get unique values with their parent paths
   colKeys.value.forEach((col, levelIdx) => {
-    const values = new Map()
+    const valuesMap = new Map()
     
     props.result.rows.forEach(row => {
       const val = row[col.key]
-      if (val !== undefined && val !== null) {
-        // Build parent path for grouping
-        const parentPath = colKeys.value
-          .slice(0, levelIdx)
-          .map(c => row[c.key])
-          .join('|')
-        
-        const fullKey = parentPath ? `${parentPath}|${val}` : String(val)
-        
-        if (!values.has(fullKey)) {
-          values.set(fullKey, {
-            value: val,
-            parentPath,
-            dimension: col.dimension,
-            level: col.level,
-            canDrillDown: store.hasNextLevel(col.dimension, col.level),
-            isExpanded: store.isExpanded('col', col.dimension, col.level, val),
-            colspan: 1
-          })
-        }
+      if (val === undefined || val === null) return
+      
+      // Build parent path for grouping (all ancestor values joined)
+      const parentValues = colKeys.value
+        .slice(0, levelIdx)
+        .map(c => row[c.key])
+      const parentPath = parentValues.join('|')
+      
+      // Unique key includes parent path to handle same values under different parents
+      const uniqueKey = parentPath ? `${parentPath}|${val}` : String(val)
+      
+      if (!valuesMap.has(uniqueKey)) {
+        valuesMap.set(uniqueKey, {
+          value: val,
+          parentPath: parentPath,
+          fullPath: uniqueKey,
+          dimension: col.dimension,
+          level: col.level,
+          canDrillDown: store.hasNextLevel(col.dimension, col.level),
+          isExpanded: store.isExpanded('col', col.dimension, col.level, val),
+          colspan: numMeasures // Default colspan is number of measures
+        })
       }
     })
     
@@ -86,26 +88,35 @@ const columnHeaders = computed(() => {
       level: levelIdx,
       dimension: col.dimension,
       levelName: col.level,
-      values: Array.from(values.values())
+      values: Array.from(valuesMap.values()).sort((a, b) => {
+        // Sort by parent path first, then by value
+        if (a.parentPath !== b.parentPath) {
+          return a.parentPath.localeCompare(b.parentPath)
+        }
+        return String(a.value).localeCompare(String(b.value))
+      })
     })
   })
   
-  // Calculate colspans for parent levels
+  // Calculate colspans from bottom to top
+  // Each parent's colspan = sum of its children's colspans
   for (let i = headers.length - 2; i >= 0; i--) {
-    const currentLevel = headers[i]
+    const parentLevel = headers[i]
     const childLevel = headers[i + 1]
     
-    currentLevel.values.forEach(parent => {
-      const parentKey = parent.parentPath 
-        ? `${parent.parentPath}|${parent.value}`
-        : String(parent.value)
+    parentLevel.values.forEach(parent => {
+      // Find all children whose parentPath matches this parent's fullPath
+      const children = childLevel.values.filter(child => 
+        child.parentPath === parent.fullPath
+      )
       
-      const childCount = childLevel.values.filter(
-        c => c.parentPath === parentKey || 
-             (c.parentPath === '' && parentKey === String(parent.value))
-      ).length
-      
-      parent.colspan = Math.max(childCount, 1) * measureKeys.value.length
+      if (children.length > 0) {
+        // Sum up children's colspans
+        parent.colspan = children.reduce((sum, child) => sum + child.colspan, 0)
+      } else {
+        // No children found, use default (measures count)
+        parent.colspan = numMeasures
+      }
     })
   }
   
@@ -182,12 +193,8 @@ const formatValue = (value) => {
 
 // Get cell value
 const getCellValue = (rowData, leafCol, measureKey) => {
-  // Build the column key path
-  const colPath = leafCol.parentPath 
-    ? `${leafCol.parentPath}|${leafCol.value}`
-    : String(leafCol.value)
-  
-  const cell = rowData.cells.get(colPath)
+  // Use fullPath for the column key
+  const cell = rowData.cells.get(leafCol.fullPath)
   if (!cell) return '-'
   return formatValue(cell[measureKey])
 }
@@ -216,7 +223,7 @@ const handleRowDrillDown = async (dimension, level, value) => {
               :key="levelIdx"
               class="col-header-row"
             >
-              <!-- Corner cells (row headers) -->
+              <!-- Corner cells (row headers) - only on first row -->
               <th 
                 v-if="levelIdx === 0"
                 v-for="rowKey in rowKeys" 
@@ -228,12 +235,17 @@ const handleRowDrillDown = async (dimension, level, value) => {
                 <span class="header-sublabel">{{ rowKey.level }}</span>
               </th>
               
-              <!-- Column headers -->
+              <!-- Column headers with colspan -->
               <th 
                 v-for="col in headerLevel.values" 
-                :key="`${col.parentPath}-${col.value}`"
-                :colspan="col.colspan || measureKeys.length"
-                :class="['col-header-cell', { 'can-drill': col.canDrillDown, 'is-expanded': col.isExpanded }]"
+                :key="col.fullPath"
+                :colspan="col.colspan"
+                :class="['col-header-cell', { 
+                  'can-drill': col.canDrillDown, 
+                  'is-expanded': col.isExpanded,
+                  'level-0': levelIdx === 0,
+                  'level-child': levelIdx > 0
+                }]"
                 @click="col.canDrillDown && handleColumnDrillDown(col.dimension, col.level, col.value)"
               >
                 <span class="drill-indicator" v-if="col.canDrillDown">
@@ -245,10 +257,10 @@ const handleRowDrillDown = async (dimension, level, value) => {
             
             <!-- Measure headers (if multiple measures) -->
             <tr v-if="measureKeys.length > 1" class="measure-header-row">
-              <template v-for="leafCol in leafColumns" :key="`${leafCol.parentPath}-${leafCol.value}`">
+              <template v-for="leafCol in leafColumns" :key="leafCol.fullPath">
                 <th 
                   v-for="measure in measureKeys" 
-                  :key="`${leafCol.value}-${measure}`"
+                  :key="`${leafCol.fullPath}-${measure}`"
                   class="measure-header-cell"
                 >
                   {{ measure }}
@@ -279,10 +291,10 @@ const handleRowDrillDown = async (dimension, level, value) => {
               </td>
               
               <!-- Data cells -->
-              <template v-for="leafCol in leafColumns" :key="`${leafCol.parentPath}-${leafCol.value}`">
+              <template v-for="leafCol in leafColumns" :key="leafCol.fullPath">
                 <td 
                   v-for="measure in measureKeys" 
-                  :key="`${leafCol.value}-${measure}`"
+                  :key="`${leafCol.fullPath}-${measure}`"
                   class="data-cell"
                 >
                   {{ getCellValue(rowData, leafCol, measure) }}
@@ -384,9 +396,23 @@ const handleRowDrillDown = async (dimension, level, value) => {
   transition: all var(--transition-fast);
 }
 
+/* First level (parent) headers - more prominent */
+.col-header-cell.level-0 {
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.15), var(--bg-tertiary));
+  color: var(--accent-primary);
+  font-size: 0.875rem;
+  padding: var(--spacing-md);
+  border-bottom: 2px solid var(--accent-primary);
+}
+
+/* Child level headers */
+.col-header-cell.level-child {
+  background: var(--bg-elevated);
+  font-size: 0.8125rem;
+}
+
 .col-header-cell.can-drill {
   cursor: pointer;
-  color: var(--accent-primary);
 }
 
 .col-header-cell.can-drill:hover {
@@ -395,7 +421,7 @@ const handleRowDrillDown = async (dimension, level, value) => {
 }
 
 .col-header-cell.is-expanded {
-  background: linear-gradient(180deg, rgba(0, 212, 255, 0.15), var(--bg-elevated));
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.2), var(--bg-elevated));
   border-bottom-color: var(--accent-primary);
 }
 
@@ -455,7 +481,6 @@ const handleRowDrillDown = async (dimension, level, value) => {
   padding: var(--spacing-xs) var(--spacing-sm);
   border: 1px solid var(--border-color);
   position: sticky;
-  top: 36px;
   z-index: 1;
 }
 
