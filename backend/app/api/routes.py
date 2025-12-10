@@ -331,24 +331,9 @@ class GenerateTablesRequest(BaseModel):
     sample_rows: int = 100
 
 
-@router.post("/cube/{cube_name}/generate-tables")
-async def generate_table_ddl(cube_name: str, sample_rows: int = 100):
-    """
-    Generate SQL DDL statements to create tables for a cube.
-    Also generates sample data INSERT statements.
-    """
-    from langchain_openai import ChatOpenAI
-    from langchain_core.messages import SystemMessage, HumanMessage
-    from ..core.config import get_settings
-    
-    cube = metadata_store.get_cube(cube_name)
-    if not cube:
-        raise HTTPException(status_code=404, detail=f"Cube '{cube_name}' not found")
-    
-    settings = get_settings()
-    schema_desc = metadata_store.get_schema_description(cube_name)
-    
-    system_prompt = f"""You are an expert PostgreSQL database administrator.
+def get_table_generation_prompt(sample_rows: int) -> str:
+    """Get the system prompt for table generation."""
+    return f"""You are an expert PostgreSQL database administrator.
 Generate SQL statements to create the tables and sample data for an OLAP cube.
 
 RULES:
@@ -369,6 +354,25 @@ Then CREATE TABLE statements for dimensions first, then fact table.
 Then INSERT statements for dimensions first, then fact table.
 Do not include any explanations or markdown code blocks.
 """
+
+
+@router.post("/cube/{cube_name}/generate-tables")
+async def generate_table_ddl(cube_name: str, sample_rows: int = 100):
+    """
+    Generate SQL DDL statements to create tables for a cube.
+    Also generates sample data INSERT statements.
+    """
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import SystemMessage, HumanMessage
+    from ..core.config import get_settings
+    
+    cube = metadata_store.get_cube(cube_name)
+    if not cube:
+        raise HTTPException(status_code=404, detail=f"Cube '{cube_name}' not found")
+    
+    settings = get_settings()
+    schema_desc = metadata_store.get_schema_description(cube_name)
+    system_prompt = get_table_generation_prompt(sample_rows)
 
     try:
         llm = ChatOpenAI(
@@ -397,6 +401,66 @@ Generate {sample_rows} rows of sample fact data with realistic values.""")
         
     except Exception as e:
         return {"sql": None, "error": str(e)}
+
+
+@router.get("/cube/{cube_name}/generate-tables-stream")
+async def generate_table_ddl_stream(cube_name: str, sample_rows: int = 100):
+    """
+    Generate SQL DDL statements with streaming response.
+    Returns Server-Sent Events (SSE) stream.
+    """
+    from fastapi.responses import StreamingResponse
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import SystemMessage, HumanMessage
+    from ..core.config import get_settings
+    import json
+    
+    cube = metadata_store.get_cube(cube_name)
+    if not cube:
+        raise HTTPException(status_code=404, detail=f"Cube '{cube_name}' not found")
+    
+    settings = get_settings()
+    schema_desc = metadata_store.get_schema_description(cube_name)
+    system_prompt = get_table_generation_prompt(sample_rows)
+    
+    async def generate():
+        try:
+            llm = ChatOpenAI(
+                model=settings.openai_model,
+                api_key=settings.openai_api_key,
+                temperature=0.3,
+                streaming=True
+            )
+            
+            async for chunk in llm.astream([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=f"""Generate PostgreSQL DDL and sample data for this cube:
+
+{schema_desc}
+
+Generate {sample_rows} rows of sample fact data with realistic values.""")
+            ]):
+                if chunk.content:
+                    # Send each chunk as SSE data
+                    data = json.dumps({"content": chunk.content})
+                    yield f"data: {data}\n\n"
+            
+            # Send completion signal
+            yield f"data: {json.dumps({'done': True})}\n\n"
+            
+        except Exception as e:
+            error_data = json.dumps({"error": str(e)})
+            yield f"data: {error_data}\n\n"
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 class ExecuteSQLRequest(BaseModel):

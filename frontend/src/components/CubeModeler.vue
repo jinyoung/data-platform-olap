@@ -38,6 +38,7 @@ const loading = ref(false)
 const error = ref(null)
 const success = ref(null)
 const diagramContainer = ref(null)
+const sqlPreviewRef = ref(null)
 
 // Visual Modeler State
 const cubeName = ref('')
@@ -286,6 +287,14 @@ watch([previewMode, generateMermaidDiagram], async ([mode]) => {
   }
 }, { immediate: true })
 
+// Auto-scroll SQL preview during streaming
+watch(generatedSQL, async () => {
+  if (generatingTables.value && sqlPreviewRef.value) {
+    await nextTick()
+    sqlPreviewRef.value.scrollTop = sqlPreviewRef.value.scrollHeight
+  }
+})
+
 // Upload cube to server
 const uploadCube = async () => {
   const xml = activeTab.value === 'visual' ? generateXMLFromModel() : generatedXML.value
@@ -318,7 +327,7 @@ const uploadCube = async () => {
   }
 }
 
-// Generate table DDL and sample data
+// Generate table DDL and sample data with streaming
 const generateTables = async () => {
   if (!uploadedCubeName.value) {
     error.value = 'No cube selected for table generation'
@@ -331,17 +340,61 @@ const generateTables = async () => {
   executionResult.value = null
   
   try {
-    const response = await fetch(`http://localhost:8000/api/cube/${uploadedCubeName.value}/generate-tables?sample_rows=${sampleRowCount.value}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    })
+    // Use streaming endpoint
+    const response = await fetch(
+      `http://localhost:8000/api/cube/${uploadedCubeName.value}/generate-tables-stream?sample_rows=${sampleRowCount.value}`,
+      {
+        method: 'GET',
+        headers: { 'Accept': 'text/event-stream' }
+      }
+    )
     
-    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
     
-    if (data.error) {
-      error.value = data.error
-    } else {
-      generatedSQL.value = data.sql
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    
+    while (true) {
+      const { done, value } = await reader.read()
+      
+      if (done) break
+      
+      buffer += decoder.decode(value, { stream: true })
+      
+      // Process complete SSE messages
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || '' // Keep incomplete line in buffer
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6))
+            
+            if (data.error) {
+              error.value = data.error
+              break
+            }
+            
+            if (data.content) {
+              // Append streaming content
+              generatedSQL.value += data.content
+            }
+            
+            if (data.done) {
+              // Clean up markdown formatting if present
+              if (generatedSQL.value.startsWith('```')) {
+                const sqlLines = generatedSQL.value.split('\n')
+                generatedSQL.value = sqlLines.slice(1, -1).join('\n')
+              }
+            }
+          } catch (parseError) {
+            // Skip invalid JSON
+          }
+        }
+      }
     }
   } catch (e) {
     error.value = e.message || 'Failed to generate tables'
@@ -571,9 +624,17 @@ const useSamplePrompt = (prompt) => {
             </div>
             
             <!-- Generated SQL Preview -->
-            <div v-if="generatedSQL" class="sql-preview-container">
-              <div class="preview-label">Generated SQL:</div>
-              <pre class="sql-preview">{{ generatedSQL }}</pre>
+            <div v-if="generatedSQL || generatingTables" class="sql-preview-container">
+              <div class="preview-label">
+                <span>Generated SQL:</span>
+                <span v-if="generatingTables" class="streaming-indicator">
+                  <span class="streaming-dot"></span>
+                  <span class="streaming-dot"></span>
+                  <span class="streaming-dot"></span>
+                  Streaming...
+                </span>
+              </div>
+              <pre ref="sqlPreviewRef" class="sql-preview" :class="{ streaming: generatingTables }">{{ generatedSQL || '-- Generating SQL...' }}<span v-if="generatingTables" class="cursor-blink">|</span></pre>
             </div>
           </div>
           
@@ -1188,11 +1249,63 @@ const useSamplePrompt = (prompt) => {
 }
 
 .preview-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
   margin-bottom: var(--spacing-xs);
+}
+
+.streaming-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--accent-primary);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+}
+
+.streaming-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  animation: streaming-pulse 1.4s ease-in-out infinite;
+}
+
+.streaming-dot:nth-child(1) { animation-delay: 0s; }
+.streaming-dot:nth-child(2) { animation-delay: 0.2s; }
+.streaming-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes streaming-pulse {
+  0%, 80%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.sql-preview.streaming {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary), 0 0 20px rgba(0, 212, 255, 0.1);
+}
+
+.cursor-blink {
+  animation: blink 0.8s step-end infinite;
+  color: var(--accent-primary);
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 .sql-preview {
