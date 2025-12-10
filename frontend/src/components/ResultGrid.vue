@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import PivotTable from './PivotTable.vue'
 
 const props = defineProps({
   result: {
@@ -9,37 +10,20 @@ const props = defineProps({
   sql: {
     type: String,
     default: ''
+  },
+  pivotConfig: {
+    type: Object,
+    default: null
   }
 })
 
 const showSQL = ref(false)
-const sortColumn = ref(null)
-const sortDirection = ref('asc')
+const viewMode = ref('pivot') // 'pivot' or 'flat'
 
-const sortedRows = computed(() => {
-  if (!props.result?.rows || !sortColumn.value) {
-    return props.result?.rows || []
-  }
-  
-  return [...props.result.rows].sort((a, b) => {
-    const aVal = a[sortColumn.value]
-    const bVal = b[sortColumn.value]
-    
-    if (aVal === bVal) return 0
-    
-    const comparison = aVal < bVal ? -1 : 1
-    return sortDirection.value === 'asc' ? comparison : -comparison
-  })
+// Check if pivot view is available
+const canShowPivot = computed(() => {
+  return props.pivotConfig?.columns?.length > 0
 })
-
-const toggleSort = (column) => {
-  if (sortColumn.value === column) {
-    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortColumn.value = column
-    sortDirection.value = 'asc'
-  }
-}
 
 const formatValue = (value) => {
   if (value === null || value === undefined) return '-'
@@ -104,6 +88,33 @@ const exportCSV = () => {
       </div>
       
       <div class="result-actions">
+        <!-- View Mode Toggle (only show if pivot columns exist) -->
+        <div v-if="canShowPivot" class="view-toggle">
+          <button 
+            :class="['toggle-btn', { active: viewMode === 'pivot' }]"
+            @click="viewMode = 'pivot'"
+            title="Pivot View"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+          </button>
+          <button 
+            :class="['toggle-btn', { active: viewMode === 'flat' }]"
+            @click="viewMode = 'flat'"
+            title="Flat Table View"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        
         <button class="btn btn-ghost" @click="showSQL = !showSQL">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="16 18 22 12 16 6"/>
@@ -142,31 +153,33 @@ const exportCSV = () => {
     </div>
     
     <!-- Data Table -->
-    <div v-else-if="result.rows?.length" class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th 
-              v-for="col in result.columns" 
-              :key="col"
-              @click="toggleSort(col)"
-              class="sortable"
-            >
-              {{ col }}
-              <span v-if="sortColumn === col" class="sort-indicator">
-                {{ sortDirection === 'asc' ? '↑' : '↓' }}
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(row, index) in sortedRows" :key="index">
-            <td v-for="col in result.columns" :key="col">
-              {{ formatValue(row[col]) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-else-if="result.rows?.length" class="table-section">
+      <!-- Pivot Table View -->
+      <PivotTable 
+        v-if="canShowPivot && viewMode === 'pivot'"
+        :result="result"
+        :pivotConfig="pivotConfig"
+      />
+      
+      <!-- Flat Table View -->
+      <div v-else class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th v-for="col in result.columns" :key="col">
+                {{ col }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, index) in result.rows" :key="index">
+              <td v-for="col in result.columns" :key="col">
+                {{ formatValue(row[col]) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
     
     <!-- Empty State -->
@@ -216,6 +229,40 @@ const exportCSV = () => {
 .result-actions {
   display: flex;
   gap: var(--spacing-sm);
+  align-items: center;
+}
+
+/* View Toggle */
+.view-toggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  margin-right: var(--spacing-sm);
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.toggle-btn.active {
+  background: var(--bg-elevated);
+  color: var(--accent-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .sql-section {
@@ -229,37 +276,45 @@ const exportCSV = () => {
   max-height: 150px;
 }
 
+.table-section {
+  padding: var(--spacing-md);
+}
+
 .table-container {
   max-height: 400px;
   overflow: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
 }
 
 table {
   min-width: 100%;
+  border-collapse: collapse;
 }
 
 th {
+  background: var(--bg-elevated);
+  color: var(--accent-primary);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
   position: sticky;
   top: 0;
   z-index: 10;
-}
-
-th.sortable {
-  cursor: pointer;
-  user-select: none;
-}
-
-th.sortable:hover {
-  background: var(--bg-tertiary);
-}
-
-.sort-indicator {
-  margin-left: var(--spacing-xs);
-  color: var(--accent-primary);
+  border-bottom: 2px solid var(--accent-primary);
 }
 
 td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
+}
+
+tr:hover td {
+  background: var(--bg-tertiary);
 }
 
 .error-state,
@@ -295,4 +350,3 @@ td {
   margin: 0 auto;
 }
 </style>
-

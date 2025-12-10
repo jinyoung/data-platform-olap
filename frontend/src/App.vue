@@ -130,7 +130,11 @@ onMounted(async () => {
     
     <!-- Result Panel -->
     <div v-if="store.queryResult" class="result-panel slide-up">
-      <ResultGrid :result="store.queryResult" :sql="store.generatedSQL" />
+      <ResultGrid 
+        :result="store.queryResult" 
+        :sql="store.generatedSQL" 
+        :pivotConfig="activeTab === 'pivot' ? store.pivotConfig : null"
+      />
     </div>
     
     <!-- Error Toast -->
