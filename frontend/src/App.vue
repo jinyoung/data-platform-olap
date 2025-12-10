@@ -5,6 +5,7 @@ import SchemaUpload from './components/SchemaUpload.vue'
 import PivotEditor from './components/PivotEditor.vue'
 import NaturalQuery from './components/NaturalQuery.vue'
 import ResultGrid from './components/ResultGrid.vue'
+import CubeModeler from './components/CubeModeler.vue'
 
 const store = useCubeStore()
 const activeTab = ref('pivot')
@@ -71,6 +72,17 @@ onMounted(async () => {
             </svg>
             Natural Language
           </button>
+          <button 
+            :class="['tab-btn', { active: activeTab === 'modeler' }]"
+            @click="activeTab = 'modeler'"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            Cube Modeler
+          </button>
         </nav>
       </div>
       
@@ -83,9 +95,9 @@ onMounted(async () => {
     </header>
     
     <!-- Main Content -->
-    <main class="app-main">
-      <!-- Sidebar - Schema Upload & Cube Selection -->
-      <aside class="sidebar">
+    <main :class="['app-main', { 'full-width': activeTab === 'modeler' }]">
+      <!-- Sidebar - Schema Upload & Cube Selection (hidden in modeler) -->
+      <aside v-if="activeTab !== 'modeler'" class="sidebar">
         <SchemaUpload />
         
         <div v-if="store.hasCubes" class="cube-selector">
@@ -125,11 +137,16 @@ onMounted(async () => {
             <p>Upload a Mondrian XML schema to use natural language queries.</p>
           </div>
         </div>
+        
+        <!-- Cube Modeler Tab -->
+        <div v-if="activeTab === 'modeler'" class="tab-content slide-up">
+          <CubeModeler />
+        </div>
       </div>
     </main>
     
-    <!-- Result Panel -->
-    <div v-if="store.queryResult" class="result-panel slide-up">
+    <!-- Result Panel (hidden in modeler) -->
+    <div v-if="store.queryResult && activeTab !== 'modeler'" class="result-panel slide-up">
       <ResultGrid 
         :result="store.queryResult" 
         :sql="store.generatedSQL" 
@@ -283,6 +300,14 @@ onMounted(async () => {
   flex: 1;
   gap: var(--spacing-lg);
   padding: var(--spacing-lg);
+}
+
+.app-main.full-width {
+  /* Full width for Cube Modeler */
+}
+
+.app-main.full-width .content {
+  max-width: 100%;
 }
 
 .sidebar {

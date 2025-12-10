@@ -242,6 +242,87 @@ async def preview_natural_language_sql(query: NaturalQuery):
         return {"sql": None, "error": str(e)}
 
 
+# ============== Cube Generation ==============
+
+class CubeGenerateRequest(BaseModel):
+    """Request for AI-based cube generation."""
+    prompt: str
+
+
+@router.post("/cube/generate")
+async def generate_cube_from_prompt(request: CubeGenerateRequest):
+    """
+    Generate a Mondrian XML cube schema from natural language description.
+    Uses LLM to create the cube structure.
+    """
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import SystemMessage, HumanMessage
+    from ..core.config import get_settings
+    
+    settings = get_settings()
+    
+    system_prompt = """You are an expert in data warehouse modeling and Mondrian OLAP schemas.
+Generate a valid Mondrian XML cube schema based on the user's description.
+
+RULES:
+1. Generate valid Mondrian XML 3.x schema format
+2. Include proper Schema, Cube, Table, Dimension, Hierarchy, Level, and Measure elements
+3. Use appropriate foreignKey attributes for dimensions
+4. Use primaryKey="id" for hierarchies unless specified otherwise
+5. Include appropriate aggregators for measures (sum, count, avg, min, max, distinct-count)
+6. Add formatString attributes for measures
+7. Use snake_case for table and column names
+8. Use CamelCase for dimension and measure names
+
+OUTPUT FORMAT:
+Return ONLY the XML content, starting with <?xml version="1.0" encoding="UTF-8"?>
+Do not include any explanations or markdown code blocks.
+
+EXAMPLE OUTPUT:
+<?xml version="1.0" encoding="UTF-8"?>
+<Schema name="ExampleSchema">
+  <Cube name="ExampleCube">
+    <Table name="fact_example"/>
+    <Dimension name="TimeDim" foreignKey="time_id">
+      <Hierarchy hasAll="true" primaryKey="id">
+        <Table name="dim_time"/>
+        <Level name="Year" column="year"/>
+        <Level name="Month" column="month"/>
+      </Hierarchy>
+    </Dimension>
+    <Measure name="Amount" column="amount" aggregator="sum" formatString="#,###"/>
+  </Cube>
+</Schema>"""
+
+    try:
+        llm = ChatOpenAI(
+            model=settings.openai_model,
+            api_key=settings.openai_api_key,
+            temperature=0.2
+        )
+        
+        response = await llm.ainvoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"Create a Mondrian cube schema for: {request.prompt}")
+        ])
+        
+        xml_content = response.content.strip()
+        
+        # Clean up any markdown formatting
+        if xml_content.startswith("```"):
+            lines = xml_content.split("\n")
+            xml_content = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+        
+        # Validate it's proper XML
+        if not xml_content.startswith("<?xml"):
+            return {"xml": None, "error": "Generated content is not valid XML"}
+        
+        return {"xml": xml_content, "error": None}
+        
+    except Exception as e:
+        return {"xml": None, "error": str(e)}
+
+
 # ============== Health Check ==============
 
 @router.get("/health")
