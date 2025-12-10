@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Schema name="BPM_Analysis">
+  <Cube name="ProcessPerformance">
+    <Table name="fact_process_instance"/>
+    
+    <!-- Process Dimension: Process > Activity -->
+    <Dimension name="Process" foreignKey="activity_id">
+      <Hierarchy hasAll="true" allMemberName="All Processes" primaryKey="id">
+        <Table name="dim_activity"/>
+        <Level name="ProcessName" column="process_name" uniqueMembers="true"/>
+        <Level name="ActivityName" column="activity_name" uniqueMembers="false"/>
+      </Hierarchy>
+    </Dimension>
+    
+    <!-- Resource Dimension: Department > User -->
+    <Dimension name="Resource" foreignKey="user_id">
+      <Hierarchy hasAll="true" allMemberName="All Resources" primaryKey="id">
+        <Table name="dim_user"/>
+        <Level name="Department" column="department" uniqueMembers="true"/>
+        <Level name="UserName" column="user_name" uniqueMembers="false"/>
+      </Hierarchy>
+    </Dimension>
+    
+    <!-- Time Dimension: Year > Quarter > Month -->
+    <Dimension name="Time" foreignKey="time_id">
+      <Hierarchy hasAll="true" allMemberName="All Time" primaryKey="id">
+        <Table name="dim_time"/>
+        <Level name="Year" column="year" type="Numeric" uniqueMembers="true"/>
+        <Level name="Quarter" column="quarter" uniqueMembers="false"/>
+        <Level name="Month" column="month" uniqueMembers="false"/>
+      </Hierarchy>
+    </Dimension>
+    
+    <!-- Measures -->
+    <Measure name="WorkTime" column="work_time_minutes" aggregator="sum" formatString="#,###">
+      <Annotations>
+        <Annotation name="description">총 작업 시간 (분)</Annotation>
+      </Annotations>
+    </Measure>
+    
+    <Measure name="LeadTime" column="lead_time_minutes" aggregator="avg" formatString="#,###.0">
+      <Annotations>
+        <Annotation name="description">평균 리드타임 (분)</Annotation>
+      </Annotations>
+    </Measure>
+    
+    <Measure name="ReworkCount" column="rework_count" aggregator="sum" formatString="#,###">
+      <Annotations>
+        <Annotation name="description">재작업 횟수</Annotation>
+      </Annotations>
+    </Measure>
+    
+    <Measure name="SatisfactionScore" column="satisfaction_score" aggregator="avg" formatString="#.00">
+      <Annotations>
+        <Annotation name="description">고객 만족도 (1-5)</Annotation>
+      </Annotations>
+    </Measure>
+    
+    <Measure name="InstanceCount" column="instance_id" aggregator="distinct-count" formatString="#,###">
+      <Annotations>
+        <Annotation name="description">프로세스 인스턴스 수</Annotation>
+      </Annotations>
+    </Measure>
+    
+  </Cube>
+</Schema>
