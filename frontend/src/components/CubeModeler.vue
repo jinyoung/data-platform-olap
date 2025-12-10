@@ -1,13 +1,43 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useCubeStore } from '../store/cubeStore'
 import * as api from '../services/api'
+import mermaid from 'mermaid'
+
+// Initialize Mermaid
+onMounted(() => {
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#0d1929',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#00d4ff',
+      lineColor: '#00d4ff',
+      secondaryColor: '#1a2744',
+      tertiaryColor: '#0f1d32',
+      edgeLabelBackground: '#0d1929',
+      clusterBkg: '#1a2744',
+      clusterBorder: '#00d4ff'
+    },
+    er: {
+      diagramPadding: 20,
+      layoutDirection: 'TB',
+      minEntityWidth: 100,
+      minEntityHeight: 75,
+      entityPadding: 15,
+      useMaxWidth: true
+    }
+  })
+})
 
 const store = useCubeStore()
 const activeTab = ref('visual') // 'visual' or 'prompt'
+const previewMode = ref('xml') // 'xml' or 'diagram'
 const loading = ref(false)
 const error = ref(null)
 const success = ref(null)
+const diagramContainer = ref(null)
 
 // Visual Modeler State
 const cubeName = ref('')
@@ -127,6 +157,134 @@ const previewXML = computed(() => {
   }
   return generatedXML.value
 })
+
+// Generate Mermaid ER Diagram for Star Schema
+const generateMermaidDiagram = computed(() => {
+  const currentCubeName = activeTab.value === 'visual' ? cubeName.value : extractCubeNameFromXML(generatedXML.value)
+  const currentFactTable = activeTab.value === 'visual' ? factTable.value : extractFactTableFromXML(generatedXML.value)
+  const currentDimensions = activeTab.value === 'visual' ? dimensions.value : extractDimensionsFromXML(generatedXML.value)
+  const currentMeasures = activeTab.value === 'visual' ? measures.value : extractMeasuresFromXML(generatedXML.value)
+  
+  if (!currentCubeName || !currentFactTable) {
+    return ''
+  }
+  
+  let diagram = `erDiagram\n`
+  
+  // Add fact table with measures
+  diagram += `    ${currentFactTable} {\n`
+  diagram += `        int id PK\n`
+  currentDimensions.forEach(dim => {
+    const fk = dim.foreignKey || `${dim.name.toLowerCase()}_id`
+    diagram += `        int ${fk} FK\n`
+  })
+  currentMeasures.forEach(measure => {
+    const colName = measure.column || measure.name.toLowerCase()
+    diagram += `        decimal ${colName}\n`
+  })
+  diagram += `    }\n\n`
+  
+  // Add dimension tables
+  currentDimensions.forEach(dim => {
+    if (dim.name && dim.table) {
+      diagram += `    ${dim.table} {\n`
+      diagram += `        int id PK\n`
+      dim.levels.forEach(level => {
+        if (level.column) {
+          diagram += `        varchar ${level.column}\n`
+        }
+      })
+      diagram += `    }\n\n`
+    }
+  })
+  
+  // Add relationships
+  currentDimensions.forEach(dim => {
+    if (dim.name && dim.table) {
+      diagram += `    ${dim.table} ||--o{ ${currentFactTable} : "has"\n`
+    }
+  })
+  
+  return diagram
+})
+
+// Helper functions to extract info from XML
+function extractCubeNameFromXML(xml) {
+  if (!xml) return ''
+  const match = xml.match(/<Cube\s+name="([^"]+)"/)
+  return match ? match[1] : ''
+}
+
+function extractFactTableFromXML(xml) {
+  if (!xml) return ''
+  const match = xml.match(/<Table\s+name="([^"]+)"/)
+  return match ? match[1] : ''
+}
+
+function extractDimensionsFromXML(xml) {
+  if (!xml) return []
+  const dims = []
+  const dimRegex = /<Dimension\s+name="([^"]+)"[^>]*foreignKey="([^"]+)"[^>]*>[\s\S]*?<Table\s+name="([^"]+)"[\s\S]*?(<Level[^>]+>[\s\S]*?)<\/Hierarchy>/g
+  let match
+  
+  while ((match = dimRegex.exec(xml)) !== null) {
+    const dim = {
+      name: match[1],
+      foreignKey: match[2],
+      table: match[3],
+      levels: []
+    }
+    
+    const levelsStr = match[4]
+    const levelRegex = /<Level\s+name="([^"]+)"\s+column="([^"]+)"/g
+    let levelMatch
+    while ((levelMatch = levelRegex.exec(levelsStr)) !== null) {
+      dim.levels.push({ name: levelMatch[1], column: levelMatch[2] })
+    }
+    
+    dims.push(dim)
+  }
+  
+  return dims
+}
+
+function extractMeasuresFromXML(xml) {
+  if (!xml) return []
+  const measures = []
+  const measureRegex = /<Measure\s+name="([^"]+)"\s+column="([^"]+)"\s+aggregator="([^"]+)"/g
+  let match
+  
+  while ((match = measureRegex.exec(xml)) !== null) {
+    measures.push({
+      name: match[1],
+      column: match[2],
+      aggregator: match[3]
+    })
+  }
+  
+  return measures
+}
+
+// Render Mermaid diagram
+async function renderMermaidDiagram() {
+  if (!diagramContainer.value || !generateMermaidDiagram.value) return
+  
+  try {
+    const { svg } = await mermaid.render('star-schema-diagram', generateMermaidDiagram.value)
+    diagramContainer.value.innerHTML = svg
+  } catch (e) {
+    console.error('Mermaid render error:', e)
+    diagramContainer.value.innerHTML = `<div class="diagram-error">Diagram rendering error: ${e.message}</div>`
+  }
+}
+
+// Watch for changes and re-render diagram
+watch([previewMode, generateMermaidDiagram], async ([mode]) => {
+  if (mode === 'diagram') {
+    await nextTick()
+    await renderMermaidDiagram()
+  }
+}, { immediate: true })
 
 // Upload cube to server
 const uploadCube = async () => {
@@ -614,10 +772,36 @@ const useSamplePrompt = (prompt) => {
           </div>
         </div>
         
-        <!-- XML Preview -->
+        <!-- Schema Preview -->
         <div class="xml-preview-panel">
           <div class="preview-header">
-            <h4>Generated XML Preview</h4>
+            <div class="preview-toggle">
+              <button 
+                :class="['toggle-btn', { active: previewMode === 'xml' }]"
+                @click="previewMode = 'xml'"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="16 18 22 12 16 6"/>
+                  <polyline points="8 6 2 12 8 18"/>
+                </svg>
+                XML
+              </button>
+              <button 
+                :class="['toggle-btn', { active: previewMode === 'diagram' }]"
+                @click="previewMode = 'diagram'"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                  <line x1="10" y1="6.5" x2="14" y2="6.5"/>
+                  <line x1="6.5" y1="10" x2="6.5" y2="14"/>
+                  <line x1="17.5" y1="10" x2="17.5" y2="14"/>
+                </svg>
+                Star Schema
+              </button>
+            </div>
             <button class="btn btn-primary" @click="uploadCube" :disabled="loading || !cubeName || !factTable">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -627,7 +811,38 @@ const useSamplePrompt = (prompt) => {
               {{ loading ? 'Uploading...' : 'Upload Cube' }}
             </button>
           </div>
-          <pre class="xml-preview">{{ previewXML || '<!-- Define cube to see preview -->' }}</pre>
+          
+          <!-- XML View -->
+          <pre v-if="previewMode === 'xml'" class="xml-preview">{{ previewXML || '<!-- Define cube to see preview -->' }}</pre>
+          
+          <!-- Star Schema Diagram View -->
+          <div v-else class="diagram-preview">
+            <div ref="diagramContainer" class="mermaid-container">
+              <div v-if="!generateMermaidDiagram" class="diagram-placeholder">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                <p>Define cube to see star schema diagram</p>
+              </div>
+            </div>
+            <div v-if="generateMermaidDiagram" class="diagram-legend">
+              <div class="legend-item">
+                <span class="legend-icon fact">◼</span>
+                <span>Fact Table</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-icon dim">◼</span>
+                <span>Dimension Tables</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-line">──</span>
+                <span>Foreign Key Relationships</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -671,7 +886,30 @@ const useSamplePrompt = (prompt) => {
         
         <div class="generated-section" v-if="generatedXML">
           <div class="preview-header">
-            <h4>Generated Cube XML</h4>
+            <div class="preview-toggle">
+              <button 
+                :class="['toggle-btn', { active: previewMode === 'xml' }]"
+                @click="previewMode = 'xml'"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="16 18 22 12 16 6"/>
+                  <polyline points="8 6 2 12 8 18"/>
+                </svg>
+                XML
+              </button>
+              <button 
+                :class="['toggle-btn', { active: previewMode === 'diagram' }]"
+                @click="previewMode = 'diagram'"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"/>
+                  <rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/>
+                  <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Star Schema
+              </button>
+            </div>
             <button class="btn btn-primary" @click="uploadCube" :disabled="loading">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -681,7 +919,28 @@ const useSamplePrompt = (prompt) => {
               {{ loading ? 'Uploading...' : 'Upload Cube' }}
             </button>
           </div>
-          <pre class="xml-preview">{{ generatedXML }}</pre>
+          
+          <!-- XML View -->
+          <pre v-if="previewMode === 'xml'" class="xml-preview">{{ generatedXML }}</pre>
+          
+          <!-- Star Schema Diagram View -->
+          <div v-else class="diagram-preview">
+            <div ref="diagramContainer" class="mermaid-container"></div>
+            <div v-if="generateMermaidDiagram" class="diagram-legend">
+              <div class="legend-item">
+                <span class="legend-icon fact">◼</span>
+                <span>Fact Table</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-icon dim">◼</span>
+                <span>Dimension Tables</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-line">──</span>
+                <span>Foreign Key Relationships</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1401,5 +1660,125 @@ const useSamplePrompt = (prompt) => {
 
 .generated-section .xml-preview {
   max-height: 400px;
+}
+
+/* Preview Toggle */
+.preview-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.toggle-btn.active {
+  background: var(--bg-elevated);
+  color: var(--accent-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Diagram Preview */
+.diagram-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.mermaid-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  overflow: auto;
+  min-height: 300px;
+}
+
+.mermaid-container svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.diagram-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.diagram-placeholder svg {
+  opacity: 0.3;
+}
+
+.diagram-placeholder p {
+  font-size: 0.875rem;
+}
+
+.diagram-error {
+  padding: var(--spacing-md);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--accent-error);
+  border-radius: var(--radius-md);
+  color: var(--accent-error);
+  font-size: 0.8125rem;
+}
+
+.diagram-legend {
+  display: flex;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-color);
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.legend-icon {
+  font-size: 0.875rem;
+}
+
+.legend-icon.fact {
+  color: var(--accent-primary);
+}
+
+.legend-icon.dim {
+  color: var(--accent-secondary);
+}
+
+.legend-line {
+  color: var(--accent-primary);
+  font-size: 0.75rem;
 }
 </style>
