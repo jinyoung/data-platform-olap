@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Schema name="SalesAnalysis">
+  <Cube name="Sales">
+    <Table name="fact_sales"/>
+    
+    <Dimension name="Date" foreignKey="date_id">
+      <Hierarchy hasAll="true" primaryKey="id">
+        <Table name="dim_date"/>
+        <Level name="Year" column="year" type="Numeric"/>
+        <Level name="Quarter" column="quarter"/>
+        <Level name="Month" column="month"/>
+        <Level name="Day" column="day"/>
+      </Hierarchy>
+    </Dimension>
+    
+    <Dimension name="Product" foreignKey="product_id">
+      <Hierarchy hasAll="true" primaryKey="id">
+        <Table name="dim_product"/>
+        <Level name="Category" column="category"/>
+        <Level name="SubCategory" column="subcategory"/>
+        <Level name="ProductName" column="product_name"/>
+      </Hierarchy>
+    </Dimension>
+    
+    <Dimension name="Region" foreignKey="region_id">
+      <Hierarchy hasAll="true" primaryKey="id">
+        <Table name="dim_region"/>
+        <Level name="Country" column="country"/>
+        <Level name="State" column="state"/>
+        <Level name="City" column="city"/>
+      </Hierarchy>
+    </Dimension>
+    
+    <Dimension name="Customer" foreignKey="customer_id">
+      <Hierarchy hasAll="true" primaryKey="id">
+        <Table name="dim_customer"/>
+        <Level name="Segment" column="segment"/>
+        <Level name="CustomerName" column="customer_name"/>
+      </Hierarchy>
+    </Dimension>
+    
+    <Measure name="SalesAmount" column="sales_amount" aggregator="sum" formatString="#,###"/>
+    <Measure name="Quantity" column="quantity" aggregator="sum" formatString="#,###"/>
+    <Measure name="Profit" column="profit" aggregator="sum" formatString="#,###.00"/>
+    <Measure name="Discount" column="discount" aggregator="avg" formatString="0.00%"/>
+    <Measure name="OrderCount" column="order_id" aggregator="distinct-count" formatString="#,###"/>
+  </Cube>
+</Schema>
