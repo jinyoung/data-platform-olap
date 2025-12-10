@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useCubeStore } from '../store/cubeStore'
 
 const props = defineProps({
@@ -14,6 +14,13 @@ const props = defineProps({
 })
 
 const store = useCubeStore()
+
+// Sorting state
+const sortConfig = ref({
+  colPath: null,      // Which column (leaf column fullPath)
+  measure: null,      // Which measure
+  direction: 'desc'   // 'asc' or 'desc'
+})
 
 // Check if we have column dimensions (need pivot transformation)
 const hasPivotColumns = computed(() => {
@@ -159,6 +166,7 @@ const pivotData = computed(() => {
         }
       })
       data.set(rowKeyValue, {
+        rowKey: rowKeyValue,
         rowDims: rowDimValues,
         cells: new Map()
       })
@@ -175,10 +183,27 @@ const pivotData = computed(() => {
   return data
 })
 
-// Get unique row entries for rendering
+// Get unique row entries for rendering (with sorting applied)
 const pivotRows = computed(() => {
   if (!pivotData.value) return []
-  return Array.from(pivotData.value.values())
+  
+  let rows = Array.from(pivotData.value.values())
+  
+  // Apply sorting if configured
+  if (sortConfig.value.colPath && sortConfig.value.measure) {
+    rows = rows.sort((a, b) => {
+      const aCell = a.cells.get(sortConfig.value.colPath)
+      const bCell = b.cells.get(sortConfig.value.colPath)
+      
+      const aVal = aCell ? parseFloat(aCell[sortConfig.value.measure]) || 0 : 0
+      const bVal = bCell ? parseFloat(bCell[sortConfig.value.measure]) || 0 : 0
+      
+      const diff = aVal - bVal
+      return sortConfig.value.direction === 'asc' ? diff : -diff
+    })
+  }
+  
+  return rows
 })
 
 // Format value for display
@@ -207,6 +232,38 @@ const handleColumnDrillDown = async (dimension, level, value) => {
 // Handle row drill-down click
 const handleRowDrillDown = async (dimension, level, value) => {
   await store.drillDownRow(dimension, level, value)
+}
+
+// Handle sorting
+const handleSort = (colPath, measure) => {
+  if (sortConfig.value.colPath === colPath && sortConfig.value.measure === measure) {
+    // Toggle direction if same column
+    if (sortConfig.value.direction === 'desc') {
+      sortConfig.value.direction = 'asc'
+    } else {
+      // Clear sort on third click
+      sortConfig.value = { colPath: null, measure: null, direction: 'desc' }
+    }
+  } else {
+    // New sort
+    sortConfig.value = {
+      colPath,
+      measure,
+      direction: 'desc'
+    }
+  }
+}
+
+// Check if column is being sorted
+const isSorted = (colPath, measure) => {
+  return sortConfig.value.colPath === colPath && sortConfig.value.measure === measure
+}
+
+const getSortDirection = (colPath, measure) => {
+  if (isSorted(colPath, measure)) {
+    return sortConfig.value.direction
+  }
+  return null
 }
 </script>
 
@@ -255,21 +312,81 @@ const handleRowDrillDown = async (dimension, level, value) => {
               </th>
             </tr>
             
-            <!-- Measure headers (if multiple measures) -->
+            <!-- Measure headers with sort buttons -->
             <tr v-if="measureKeys.length > 1" class="measure-header-row">
               <template v-for="leafCol in leafColumns" :key="leafCol.fullPath">
                 <th 
                   v-for="measure in measureKeys" 
                   :key="`${leafCol.fullPath}-${measure}`"
-                  class="measure-header-cell"
+                  :class="['measure-header-cell', { 'is-sorted': isSorted(leafCol.fullPath, measure) }]"
                 >
-                  {{ measure }}
+                  <div class="measure-header-content">
+                    <span class="measure-name">{{ measure }}</span>
+                    <button 
+                      class="sort-btn"
+                      :class="{ 
+                        'active': isSorted(leafCol.fullPath, measure),
+                        'asc': getSortDirection(leafCol.fullPath, measure) === 'asc',
+                        'desc': getSortDirection(leafCol.fullPath, measure) === 'desc'
+                      }"
+                      @click.stop="handleSort(leafCol.fullPath, measure)"
+                      :title="isSorted(leafCol.fullPath, measure) 
+                        ? (getSortDirection(leafCol.fullPath, measure) === 'desc' ? 'Sort Ascending' : 'Clear Sort')
+                        : 'Sort Descending'"
+                    >
+                      <span class="sort-icon">
+                        <svg v-if="!isSorted(leafCol.fullPath, measure)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M7 15l5 5 5-5"/>
+                          <path d="M7 9l5-5 5 5"/>
+                        </svg>
+                        <svg v-else-if="getSortDirection(leafCol.fullPath, measure) === 'desc'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M7 13l5 5 5-5"/>
+                        </svg>
+                        <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M7 11l5-5 5 5"/>
+                        </svg>
+                      </span>
+                    </button>
+                  </div>
+                </th>
+              </template>
+            </tr>
+            
+            <!-- Single measure with sort (when only 1 measure, add sort to leaf columns) -->
+            <tr v-if="measureKeys.length === 1" class="measure-header-row single-measure">
+              <template v-for="leafCol in leafColumns" :key="leafCol.fullPath">
+                <th class="measure-header-cell" :class="{ 'is-sorted': isSorted(leafCol.fullPath, measureKeys[0]) }">
+                  <div class="measure-header-content">
+                    <span class="measure-name">{{ measureKeys[0] }}</span>
+                    <button 
+                      class="sort-btn"
+                      :class="{ 
+                        'active': isSorted(leafCol.fullPath, measureKeys[0]),
+                        'asc': getSortDirection(leafCol.fullPath, measureKeys[0]) === 'asc',
+                        'desc': getSortDirection(leafCol.fullPath, measureKeys[0]) === 'desc'
+                      }"
+                      @click.stop="handleSort(leafCol.fullPath, measureKeys[0])"
+                    >
+                      <span class="sort-icon">
+                        <svg v-if="!isSorted(leafCol.fullPath, measureKeys[0])" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M7 15l5 5 5-5"/>
+                          <path d="M7 9l5-5 5 5"/>
+                        </svg>
+                        <svg v-else-if="getSortDirection(leafCol.fullPath, measureKeys[0]) === 'desc'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M7 13l5 5 5-5"/>
+                        </svg>
+                        <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M7 11l5-5 5 5"/>
+                        </svg>
+                      </span>
+                    </button>
+                  </div>
                 </th>
               </template>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(rowData, rowIndex) in pivotRows" :key="rowIndex">
+            <tr v-for="(rowData, rowIndex) in pivotRows" :key="rowData.rowKey">
               <!-- Row dimension values -->
               <td 
                 v-for="rowKey in rowKeys" 
@@ -295,7 +412,7 @@ const handleRowDrillDown = async (dimension, level, value) => {
                 <td 
                   v-for="measure in measureKeys" 
                   :key="`${leafCol.fullPath}-${measure}`"
-                  class="data-cell"
+                  :class="['data-cell', { 'sorted-column': isSorted(leafCol.fullPath, measure) }]"
                 >
                   {{ getCellValue(rowData, leafCol, measure) }}
                 </td>
@@ -307,7 +424,7 @@ const handleRowDrillDown = async (dimension, level, value) => {
       
       <!-- Drill-down hint -->
       <div class="drill-hint">
-        💡 Click on <span class="drill-indicator">▶</span> headers to drill down into child levels
+        💡 Click on <span class="drill-indicator">▶</span> headers to drill down • Click sort buttons <span class="sort-icon-hint">↕</span> to sort by column
       </div>
     </template>
     
@@ -484,6 +601,69 @@ const handleRowDrillDown = async (dimension, level, value) => {
   z-index: 1;
 }
 
+.measure-header-cell.is-sorted {
+  background: rgba(16, 185, 129, 0.1);
+  border-bottom: 2px solid var(--accent-success);
+}
+
+.measure-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.measure-name {
+  flex-shrink: 0;
+}
+
+/* Sort button */
+.sort-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.sort-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.sort-btn.active {
+  background: var(--accent-success);
+  color: white;
+  border-color: var(--accent-success);
+}
+
+.sort-btn.active:hover {
+  background: var(--accent-success);
+  filter: brightness(1.1);
+}
+
+.sort-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Single measure row - different styling */
+.measure-header-row.single-measure .measure-header-cell {
+  background: var(--bg-tertiary);
+  font-size: 0.625rem;
+  padding: var(--spacing-xs);
+}
+
 /* Data Cells */
 .data-cell {
   text-align: right;
@@ -500,6 +680,10 @@ const handleRowDrillDown = async (dimension, level, value) => {
   background: var(--bg-tertiary);
 }
 
+.data-cell.sorted-column {
+  background: rgba(16, 185, 129, 0.05);
+}
+
 /* Drill-down hint */
 .drill-hint {
   padding: var(--spacing-sm) var(--spacing-md);
@@ -512,6 +696,11 @@ const handleRowDrillDown = async (dimension, level, value) => {
 
 .drill-hint .drill-indicator {
   color: var(--accent-primary);
+  margin: 0 var(--spacing-xs);
+}
+
+.sort-icon-hint {
+  color: var(--accent-success);
   margin: 0 var(--spacing-xs);
 }
 
@@ -546,6 +735,10 @@ const handleRowDrillDown = async (dimension, level, value) => {
 
 .pivot-table tbody tr:nth-child(even) .data-cell {
   background: rgba(0, 0, 0, 0.1);
+}
+
+.pivot-table tbody tr:nth-child(even) .data-cell.sorted-column {
+  background: rgba(16, 185, 129, 0.08);
 }
 
 /* Header value styling */
