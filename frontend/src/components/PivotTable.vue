@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { useCubeStore } from '../store/cubeStore'
 
 const props = defineProps({
   result: {
@@ -12,39 +13,111 @@ const props = defineProps({
   }
 })
 
+const store = useCubeStore()
+
 // Check if we have column dimensions (need pivot transformation)
 const hasPivotColumns = computed(() => {
   return props.pivotConfig?.columns?.length > 0
 })
 
-// Get column keys from pivot config
+// Get the effective config (with drill-downs applied)
+const effectiveConfig = computed(() => {
+  return store.buildDrillDownConfig()
+})
+
+// Get column keys from effective config
 const rowKeys = computed(() => {
-  return props.pivotConfig?.rows?.map(r => `${r.dimension}_${r.level}`.toLowerCase()) || []
+  return effectiveConfig.value?.rows?.map(r => ({
+    key: `${r.dimension}_${r.level}`.toLowerCase(),
+    dimension: r.dimension,
+    level: r.level
+  })) || []
 })
 
 const colKeys = computed(() => {
-  return props.pivotConfig?.columns?.map(c => `${c.dimension}_${c.level}`.toLowerCase()) || []
+  return effectiveConfig.value?.columns?.map(c => ({
+    key: `${c.dimension}_${c.level}`.toLowerCase(),
+    dimension: c.dimension,
+    level: c.level
+  })) || []
 })
 
 const measureKeys = computed(() => {
   return props.pivotConfig?.measures?.map(m => m.name.toLowerCase()) || []
 })
 
-// Extract unique column values for pivot headers
-const columnValues = computed(() => {
+// Build hierarchical column structure for headers
+const columnHeaders = computed(() => {
   if (!hasPivotColumns.value || !props.result?.rows) return []
   
-  const values = new Set()
-  const colKey = colKeys.value[0] // Support single column dimension for now
+  // Group by column hierarchy
+  const headers = []
   
-  props.result.rows.forEach(row => {
-    const val = row[colKey]
-    if (val !== undefined && val !== null) {
-      values.add(val)
-    }
+  // For each column level, get unique values
+  colKeys.value.forEach((col, levelIdx) => {
+    const values = new Map()
+    
+    props.result.rows.forEach(row => {
+      const val = row[col.key]
+      if (val !== undefined && val !== null) {
+        // Build parent path for grouping
+        const parentPath = colKeys.value
+          .slice(0, levelIdx)
+          .map(c => row[c.key])
+          .join('|')
+        
+        const fullKey = parentPath ? `${parentPath}|${val}` : String(val)
+        
+        if (!values.has(fullKey)) {
+          values.set(fullKey, {
+            value: val,
+            parentPath,
+            dimension: col.dimension,
+            level: col.level,
+            canDrillDown: store.hasNextLevel(col.dimension, col.level),
+            isExpanded: store.isExpanded('col', col.dimension, col.level, val),
+            colspan: 1
+          })
+        }
+      }
+    })
+    
+    headers.push({
+      level: levelIdx,
+      dimension: col.dimension,
+      levelName: col.level,
+      values: Array.from(values.values())
+    })
   })
   
-  return Array.from(values).sort()
+  // Calculate colspans for parent levels
+  for (let i = headers.length - 2; i >= 0; i--) {
+    const currentLevel = headers[i]
+    const childLevel = headers[i + 1]
+    
+    currentLevel.values.forEach(parent => {
+      const parentKey = parent.parentPath 
+        ? `${parent.parentPath}|${parent.value}`
+        : String(parent.value)
+      
+      const childCount = childLevel.values.filter(
+        c => c.parentPath === parentKey || 
+             (c.parentPath === '' && parentKey === String(parent.value))
+      ).length
+      
+      parent.colspan = Math.max(childCount, 1) * measureKeys.value.length
+    })
+  }
+  
+  return headers
+})
+
+// Get flat list of leaf column values for data cells
+const leafColumns = computed(() => {
+  if (columnHeaders.value.length === 0) return []
+  
+  const lastLevel = columnHeaders.value[columnHeaders.value.length - 1]
+  return lastLevel?.values || []
 })
 
 // Build pivot data structure
@@ -53,19 +126,26 @@ const pivotData = computed(() => {
     return null
   }
   
-  const colKey = colKeys.value[0]
   const data = new Map()
   
   props.result.rows.forEach(row => {
     // Build row key from all row dimensions
-    const rowKeyValue = rowKeys.value.map(k => row[k]).join('|')
-    const colValue = row[colKey]
+    const rowKeyValue = rowKeys.value.map(k => row[k.key]).join('|')
+    
+    // Build column key from all column dimensions
+    const colKeyValue = colKeys.value.map(c => row[c.key]).join('|')
     
     if (!data.has(rowKeyValue)) {
       // Store row dimension values
       const rowDimValues = {}
       rowKeys.value.forEach(k => {
-        rowDimValues[k] = row[k]
+        rowDimValues[k.key] = {
+          value: row[k.key],
+          dimension: k.dimension,
+          level: k.level,
+          canDrillDown: store.hasNextLevel(k.dimension, k.level),
+          isExpanded: store.isExpanded('row', k.dimension, k.level, row[k.key])
+        }
       })
       data.set(rowKeyValue, {
         rowDims: rowDimValues,
@@ -78,7 +158,7 @@ const pivotData = computed(() => {
     measureKeys.value.forEach(m => {
       measures[m] = row[m]
     })
-    data.get(rowKeyValue).cells.set(colValue, measures)
+    data.get(rowKeyValue).cells.set(colKeyValue, measures)
   })
   
   return data
@@ -101,15 +181,25 @@ const formatValue = (value) => {
 }
 
 // Get cell value
-const getCellValue = (rowData, colValue, measureKey) => {
-  const cell = rowData.cells.get(colValue)
+const getCellValue = (rowData, leafCol, measureKey) => {
+  // Build the column key path
+  const colPath = leafCol.parentPath 
+    ? `${leafCol.parentPath}|${leafCol.value}`
+    : String(leafCol.value)
+  
+  const cell = rowData.cells.get(colPath)
   if (!cell) return '-'
   return formatValue(cell[measureKey])
 }
 
-// Get row dimension label
-const getRowLabel = (rowData, key) => {
-  return rowData.rowDims[key] ?? '-'
+// Handle column drill-down click
+const handleColumnDrillDown = async (dimension, level, value) => {
+  await store.drillDownColumn(dimension, level, value)
+}
+
+// Handle row drill-down click
+const handleRowDrillDown = async (dimension, level, value) => {
+  await store.drillDownRow(dimension, level, value)
 }
 </script>
 
@@ -120,31 +210,45 @@ const getRowLabel = (rowData, key) => {
       <div class="pivot-table-wrapper">
         <table class="pivot-table">
           <thead>
-            <!-- Column dimension header row -->
-            <tr class="col-header-row">
+            <!-- Column dimension header rows -->
+            <tr 
+              v-for="(headerLevel, levelIdx) in columnHeaders" 
+              :key="levelIdx"
+              class="col-header-row"
+            >
+              <!-- Corner cells (row headers) -->
               <th 
+                v-if="levelIdx === 0"
                 v-for="rowKey in rowKeys" 
-                :key="rowKey"
-                class="row-header-cell corner-cell"
-                :rowspan="measureKeys.length > 1 ? 2 : 1"
+                :key="rowKey.key"
+                class="corner-cell"
+                :rowspan="columnHeaders.length + (measureKeys.length > 1 ? 1 : 0)"
               >
-                {{ rowKey.replace('_', ' › ') }}
+                <span class="header-label">{{ rowKey.dimension }}</span>
+                <span class="header-sublabel">{{ rowKey.level }}</span>
               </th>
+              
+              <!-- Column headers -->
               <th 
-                v-for="colValue in columnValues" 
-                :key="colValue"
-                :colspan="measureKeys.length"
-                class="col-header-cell"
+                v-for="col in headerLevel.values" 
+                :key="`${col.parentPath}-${col.value}`"
+                :colspan="col.colspan || measureKeys.length"
+                :class="['col-header-cell', { 'can-drill': col.canDrillDown, 'is-expanded': col.isExpanded }]"
+                @click="col.canDrillDown && handleColumnDrillDown(col.dimension, col.level, col.value)"
               >
-                {{ colValue }}
+                <span class="drill-indicator" v-if="col.canDrillDown">
+                  {{ col.isExpanded ? '▼' : '▶' }}
+                </span>
+                <span class="header-value">{{ col.value }}</span>
               </th>
             </tr>
+            
             <!-- Measure headers (if multiple measures) -->
             <tr v-if="measureKeys.length > 1" class="measure-header-row">
-              <template v-for="colValue in columnValues" :key="colValue">
+              <template v-for="leafCol in leafColumns" :key="`${leafCol.parentPath}-${leafCol.value}`">
                 <th 
                   v-for="measure in measureKeys" 
-                  :key="`${colValue}-${measure}`"
+                  :key="`${leafCol.value}-${measure}`"
                   class="measure-header-cell"
                 >
                   {{ measure }}
@@ -157,24 +261,41 @@ const getRowLabel = (rowData, key) => {
               <!-- Row dimension values -->
               <td 
                 v-for="rowKey in rowKeys" 
-                :key="rowKey"
-                class="row-header-cell"
+                :key="rowKey.key"
+                :class="['row-header-cell', { 
+                  'can-drill': rowData.rowDims[rowKey.key]?.canDrillDown,
+                  'is-expanded': rowData.rowDims[rowKey.key]?.isExpanded 
+                }]"
+                @click="rowData.rowDims[rowKey.key]?.canDrillDown && handleRowDrillDown(
+                  rowData.rowDims[rowKey.key].dimension,
+                  rowData.rowDims[rowKey.key].level,
+                  rowData.rowDims[rowKey.key].value
+                )"
               >
-                {{ getRowLabel(rowData, rowKey) }}
+                <span class="drill-indicator" v-if="rowData.rowDims[rowKey.key]?.canDrillDown">
+                  {{ rowData.rowDims[rowKey.key]?.isExpanded ? '▼' : '▶' }}
+                </span>
+                <span class="cell-value">{{ rowData.rowDims[rowKey.key]?.value ?? '-' }}</span>
               </td>
+              
               <!-- Data cells -->
-              <template v-for="colValue in columnValues" :key="colValue">
+              <template v-for="leafCol in leafColumns" :key="`${leafCol.parentPath}-${leafCol.value}`">
                 <td 
                   v-for="measure in measureKeys" 
-                  :key="`${colValue}-${measure}`"
+                  :key="`${leafCol.value}-${measure}`"
                   class="data-cell"
                 >
-                  {{ getCellValue(rowData, colValue, measure) }}
+                  {{ getCellValue(rowData, leafCol, measure) }}
                 </td>
               </template>
             </tr>
           </tbody>
         </table>
+      </div>
+      
+      <!-- Drill-down hint -->
+      <div class="drill-hint">
+        💡 Click on <span class="drill-indicator">▶</span> headers to drill down into child levels
       </div>
     </template>
     
@@ -220,31 +341,38 @@ const getRowLabel = (rowData, key) => {
   font-size: 0.8125rem;
 }
 
-/* Corner and Row Headers */
-.corner-cell,
-.row-header-cell {
-  background: var(--bg-elevated);
-  color: var(--accent-secondary);
+/* Corner cells */
+.corner-cell {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   font-weight: 600;
   text-align: left;
   padding: var(--spacing-sm) var(--spacing-md);
   border: 1px solid var(--border-color);
   position: sticky;
   left: 0;
-  z-index: 2;
-  white-space: nowrap;
-  text-transform: capitalize;
+  z-index: 3;
+  vertical-align: bottom;
 }
 
-.corner-cell {
-  z-index: 3;
-  background: var(--bg-tertiary);
+.header-label {
+  display: block;
+  color: var(--accent-secondary);
+  font-size: 0.75rem;
+}
+
+.header-sublabel {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 /* Column Headers */
 .col-header-cell {
   background: linear-gradient(180deg, var(--bg-tertiary), var(--bg-elevated));
-  color: var(--accent-primary);
+  color: var(--text-primary);
   font-weight: 600;
   text-align: center;
   padding: var(--spacing-sm) var(--spacing-md);
@@ -253,8 +381,69 @@ const getRowLabel = (rowData, key) => {
   top: 0;
   z-index: 1;
   white-space: nowrap;
+  transition: all var(--transition-fast);
 }
 
+.col-header-cell.can-drill {
+  cursor: pointer;
+  color: var(--accent-primary);
+}
+
+.col-header-cell.can-drill:hover {
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg-tertiary));
+  box-shadow: inset 0 0 20px rgba(0, 212, 255, 0.1);
+}
+
+.col-header-cell.is-expanded {
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.15), var(--bg-elevated));
+  border-bottom-color: var(--accent-primary);
+}
+
+/* Row Headers */
+.row-header-cell {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: left;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.row-header-cell.can-drill {
+  cursor: pointer;
+  color: var(--accent-secondary);
+}
+
+.row-header-cell.can-drill:hover {
+  background: var(--bg-tertiary);
+}
+
+.row-header-cell.is-expanded {
+  background: rgba(124, 58, 237, 0.1);
+  border-left-color: var(--accent-secondary);
+  border-left-width: 3px;
+}
+
+/* Drill indicator */
+.drill-indicator {
+  display: inline-block;
+  width: 16px;
+  font-size: 0.625rem;
+  color: var(--accent-primary);
+  margin-right: var(--spacing-xs);
+  transition: transform var(--transition-fast);
+}
+
+.col-header-cell .drill-indicator {
+  font-size: 0.5rem;
+}
+
+/* Measure headers */
 .measure-header-cell {
   background: var(--bg-elevated);
   color: var(--accent-success);
@@ -286,6 +475,21 @@ const getRowLabel = (rowData, key) => {
   background: var(--bg-tertiary);
 }
 
+/* Drill-down hint */
+.drill-hint {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.drill-hint .drill-indicator {
+  color: var(--accent-primary);
+  margin: 0 var(--spacing-xs);
+}
+
 /* Flat table specific */
 .flat-table th {
   background: var(--bg-elevated);
@@ -310,14 +514,21 @@ const getRowLabel = (rowData, key) => {
   background: var(--bg-tertiary);
 }
 
-/* Alternating row colors for better readability */
-.pivot-table tbody tr:nth-child(even) .row-header-cell,
-.pivot-table tbody tr:nth-child(even) .data-cell {
-  background: rgba(0, 0, 0, 0.15);
-}
-
+/* Alternating row colors */
 .pivot-table tbody tr:nth-child(even) .row-header-cell {
   background: var(--bg-tertiary);
 }
-</style>
 
+.pivot-table tbody tr:nth-child(even) .data-cell {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Header value styling */
+.header-value {
+  font-weight: 600;
+}
+
+.cell-value {
+  font-weight: 500;
+}
+</style>

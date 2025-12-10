@@ -18,6 +18,10 @@ export const useCubeStore = defineStore('cube', () => {
     filters: []
   })
   
+  // Drill-down state: tracks expanded items
+  // Format: { 'dimension:level:value': true }
+  const expandedItems = ref({})
+  
   // Query results
   const queryResult = ref(null)
   const generatedSQL = ref('')
@@ -40,6 +44,30 @@ export const useCubeStore = defineStore('cube', () => {
       type: 'measure'
     }))
   })
+  
+  // Get the next level in a dimension hierarchy
+  function getNextLevel(dimensionName, currentLevel) {
+    const dim = cubeMetadata.value?.dimensions.find(d => d.name === dimensionName)
+    if (!dim || !dim.levels) return null
+    
+    const currentIndex = dim.levels.findIndex(l => l.name === currentLevel)
+    if (currentIndex === -1 || currentIndex >= dim.levels.length - 1) {
+      return null // No next level
+    }
+    
+    return dim.levels[currentIndex + 1]
+  }
+  
+  // Check if a level has children
+  function hasNextLevel(dimensionName, currentLevel) {
+    return getNextLevel(dimensionName, currentLevel) !== null
+  }
+  
+  // Get hierarchy info for a dimension
+  function getDimensionHierarchy(dimensionName) {
+    const dim = cubeMetadata.value?.dimensions.find(d => d.name === dimensionName)
+    return dim?.levels || []
+  }
   
   // Actions
   async function uploadSchema(file) {
@@ -114,6 +142,7 @@ export const useCubeStore = defineStore('cube', () => {
       measures: [],
       filters: []
     }
+    expandedItems.value = {}
     queryResult.value = null
     generatedSQL.value = ''
   }
@@ -156,7 +185,111 @@ export const useCubeStore = defineStore('cube', () => {
     pivotConfig.value.filters.splice(index, 1)
   }
   
+  // Drill-down: expand a column header to show next level
+  async function drillDownColumn(dimensionName, currentLevel, value) {
+    const key = `col:${dimensionName}:${currentLevel}:${value}`
+    
+    if (expandedItems.value[key]) {
+      // Collapse: remove the expansion
+      delete expandedItems.value[key]
+    } else {
+      // Expand: mark as expanded
+      expandedItems.value[key] = true
+    }
+    
+    // Re-execute query with updated drill-down state
+    await executePivotQueryWithDrillDown()
+  }
+  
+  // Drill-down: expand a row header to show next level
+  async function drillDownRow(dimensionName, currentLevel, value) {
+    const key = `row:${dimensionName}:${currentLevel}:${value}`
+    
+    if (expandedItems.value[key]) {
+      // Collapse
+      delete expandedItems.value[key]
+    } else {
+      // Expand
+      expandedItems.value[key] = true
+    }
+    
+    await executePivotQueryWithDrillDown()
+  }
+  
+  // Check if an item is expanded
+  function isExpanded(type, dimensionName, level, value) {
+    const key = `${type}:${dimensionName}:${level}:${value}`
+    return !!expandedItems.value[key]
+  }
+  
+  // Build query configuration with drill-downs applied
+  function buildDrillDownConfig() {
+    const config = {
+      rows: [...pivotConfig.value.rows],
+      columns: [...pivotConfig.value.columns],
+      measures: [...pivotConfig.value.measures],
+      filters: [...pivotConfig.value.filters]
+    }
+    
+    // Add expanded levels to columns
+    for (const key of Object.keys(expandedItems.value)) {
+      const [type, dimName, level, value] = key.split(':')
+      const nextLevel = getNextLevel(dimName, level)
+      
+      if (nextLevel) {
+        if (type === 'col') {
+          // Check if next level already in columns
+          const exists = config.columns.find(
+            c => c.dimension === dimName && c.level === nextLevel.name
+          )
+          if (!exists) {
+            // Find position of current level and insert after
+            const currentIdx = config.columns.findIndex(
+              c => c.dimension === dimName && c.level === level
+            )
+            if (currentIdx !== -1) {
+              config.columns.splice(currentIdx + 1, 0, {
+                dimension: dimName,
+                level: nextLevel.name
+              })
+            }
+          }
+        } else if (type === 'row') {
+          const exists = config.rows.find(
+            r => r.dimension === dimName && r.level === nextLevel.name
+          )
+          if (!exists) {
+            const currentIdx = config.rows.findIndex(
+              r => r.dimension === dimName && r.level === level
+            )
+            if (currentIdx !== -1) {
+              config.rows.splice(currentIdx + 1, 0, {
+                dimension: dimName,
+                level: nextLevel.name
+              })
+            }
+          }
+        }
+        
+        // Add filter for the expanded value
+        config.filters.push({
+          dimension: dimName,
+          level: level,
+          operator: '=',
+          values: [value]
+        })
+      }
+    }
+    
+    return config
+  }
+  
   async function executePivotQuery() {
+    expandedItems.value = {} // Reset drill-downs on fresh query
+    await executePivotQueryWithDrillDown()
+  }
+  
+  async function executePivotQueryWithDrillDown() {
     if (!currentCube.value) {
       error.value = 'No cube selected'
       return
@@ -166,9 +299,10 @@ export const useCubeStore = defineStore('cube', () => {
     error.value = null
     
     try {
+      const config = buildDrillDownConfig()
       const query = {
         cube_name: currentCube.value,
-        ...pivotConfig.value
+        ...config
       }
       
       const result = await api.executePivotQuery(query)
@@ -189,9 +323,10 @@ export const useCubeStore = defineStore('cube', () => {
     if (!currentCube.value) return ''
     
     try {
+      const config = buildDrillDownConfig()
       const query = {
         cube_name: currentCube.value,
-        ...pivotConfig.value
+        ...config
       }
       
       const result = await api.previewPivotSQL(query)
@@ -238,6 +373,7 @@ export const useCubeStore = defineStore('cube', () => {
     loading,
     error,
     pivotConfig,
+    expandedItems,
     queryResult,
     generatedSQL,
     
@@ -262,7 +398,15 @@ export const useCubeStore = defineStore('cube', () => {
     removeFilter,
     executePivotQuery,
     previewSQL,
-    executeNaturalQuery
+    executeNaturalQuery,
+    
+    // Drill-down
+    drillDownColumn,
+    drillDownRow,
+    isExpanded,
+    hasNextLevel,
+    getNextLevel,
+    getDimensionHierarchy,
+    buildDrillDownConfig
   }
 })
-
