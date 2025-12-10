@@ -5,8 +5,8 @@ A modern AI-powered pivot analysis platform that supports Mondrian XML schemas a
 ## Intro Videos
 
 - [AI Pivot Studio Demo](https://youtu.be/a7EvGdzJ3CQ)
-- [Pivot Table](https://youtu.be/Mz-cKirAxxw)
-- [Drill-Down/Up](https://youtu.be/UAy3BdgiViE)
+- [Drill-Down/Up](https://youtu.be/Mz-cKirAxxw)
+- [Process Performance Anaytics Example](https://youtu.be/UAy3BdgiViE)
 
 ![Vue.js](https://img.shields.io/badge/Vue.js-3.x-4FC08D?logo=vue.js)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python)
