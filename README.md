@@ -23,17 +23,17 @@ A modern AI-powered pivot analysis platform that supports Mondrian XML schemas a
 
 ## Screenshots
 
-### 1. Cube Modeler - Star Schema Visualization
-
-Visualize your data warehouse structure with an interactive star schema diagram. Dimension tables and fact tables are displayed with their relationships, making it easy to understand the cube structure at a glance.
-
-![Cube Modeler - Star Schema](doc/ai%20olap%20studio2.png)
-
 ### 2. Pivot Analysis - Drag & Drop Interface
 
 Build pivot reports effortlessly by dragging dimensions to Rows/Columns and measures to the Measures zone. Execute queries instantly and view results in a dynamic pivot table with drill-down capabilities.
 
-![Pivot Analysis](doc/ai%20olap%20studio1.png)
+![Cube Modeler - Star Schema](doc/ai%20olap%20studio1.png)
+
+### 1. Cube Modeler - Star Schema Visualization
+
+Visualize your data warehouse structure with an interactive star schema diagram. Dimension tables and fact tables are displayed with their relationships, making it easy to understand the cube structure at a glance.
+
+![Pivot Analysis](doc/ai%20olap%20studio2.png)
 
 ### 3. AI Cube Generator
 
