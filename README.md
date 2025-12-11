@@ -21,6 +21,32 @@ A modern AI-powered pivot analysis platform that supports Mondrian XML schemas a
 - 🤖 **AI-Powered**: Uses OpenAI GPT models for Text2SQL conversion
 - ⚡ **Fast & Modern**: Vue.js 3 frontend with a beautiful dark theme
 
+## Screenshots
+
+### 1. Cube Modeler - Star Schema Visualization
+
+Visualize your data warehouse structure with an interactive star schema diagram. Dimension tables and fact tables are displayed with their relationships, making it easy to understand the cube structure at a glance.
+
+![Cube Modeler - Star Schema](doc/ai%20olap%20studio1.png)
+
+### 2. Pivot Analysis - Drag & Drop Interface
+
+Build pivot reports effortlessly by dragging dimensions to Rows/Columns and measures to the Measures zone. Execute queries instantly and view results in a dynamic pivot table with drill-down capabilities.
+
+![Pivot Analysis](doc/ai%20olap%20studio2.png)
+
+### 3. AI Cube Generator
+
+Describe your cube in natural language and let AI generate the complete Mondrian XML schema. Simply describe dimensions, hierarchies, and measures - the AI handles the rest.
+
+![AI Cube Generator](doc/ai%20olap%20studio3.png)
+
+### 4. Auto-Generate Database Tables & Sample Data
+
+After creating a cube, automatically generate PostgreSQL DDL statements and realistic sample data. The AI creates table structures matching your cube definition and populates them with contextually appropriate test data.
+
+![Create Database Tables](doc/ai%20olap%20studio4.png)
+
 ## Architecture
 
 ```
@@ -82,6 +108,26 @@ npm run dev
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
+
+### 4. Docker Compose Stack
+
+Create a `.env` file in the repository root with the production OpenAI credential you want to use:
+
+```
+OPENAI_API_KEY=sk-xxxx
+```
+
+The backend already falls back to the bundled PostgreSQL URL and GPT model defaults, so no other variables are required unless you want to customize them.
+
+From the repository root, run the docker compose stack that builds and starts both services together:
+
+```bash
+docker compose up --build
+```
+
+The `frontend` service exposes the app on `http://localhost:5173` and talks to the `backend` API at `http://backend:8000/api`.
+
+Stop the stack with `docker compose down` and use `docker compose up --build` when dependencies change.
 
 ## Usage
 
@@ -165,7 +211,7 @@ langolap/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key | Required |
+| `OPENAI_API_KEY` | OpenAI API key (only required value for `docker compose up`; other settings fall back to defaults) | — |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/pivot_studio` |
 | `OPENAI_MODEL` | OpenAI model to use | `gpt-4o-mini` |
 

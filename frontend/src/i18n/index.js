@@ -70,3 +70,4 @@ export function getLocale() {
 export default i18n
 
 
+
