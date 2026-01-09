@@ -16,6 +16,7 @@ dependencies = [
     "python-multipart>=0.0.6",
     "lxml>=5.1.0",
     "httpx>=0.26.0",
+    "neo4j>=5.0.0",
 ]
 
 [build-system]

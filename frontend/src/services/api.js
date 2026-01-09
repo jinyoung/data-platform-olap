@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
+// API Gateway URL - 모든 마이크로서비스 요청의 단일 진입점
+const API_GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL ?? 'http://localhost:9000'
+const API_BASE_URL = `${API_GATEWAY_URL}/olap/api`
 
 const api = axios.create({
   baseURL: API_BASE_URL,

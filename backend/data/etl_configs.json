@@ -1,0 +1,153 @@
+{
+  "정수장별유량": {
+    "cube_name": "정수장별유량",
+    "fact_table": "dw.fact_flow",
+    "dimension_tables": [
+      "dw.dim_time",
+      "dw.dim_site",
+      "dw.dim_tag"
+    ],
+    "source_tables": [
+      "rwis.rdf01hh_tb",
+      "rwis.rdisaup_tb",
+      "rwis.rditag_tb"
+    ],
+    "mappings": [
+      {
+        "source_table": "rwis.rdf01hh_tb",
+        "source_column": "log_time",
+        "target_table": "fact_flow",
+        "target_column": "log_time",
+        "transformation": ""
+      },
+      {
+        "source_table": "rwis.rdf01hh_tb",
+        "source_column": "tagsn",
+        "target_table": "fact_flow",
+        "target_column": "tagsn",
+        "transformation": ""
+      },
+      {
+        "source_table": "rwis.rdf01hh_tb",
+        "source_column": "val",
+        "target_table": "fact_flow",
+        "target_column": "flow_value",
+        "transformation": "AVG(val)"
+      }
+    ],
+    "dw_schema": "dw",
+    "created_at": "2026-01-09T09:42:49.234748",
+    "last_sync": null,
+    "sync_mode": "incremental",
+    "incremental_column": "log_time"
+  },
+  "사업장별유량": {
+    "cube_name": "사업장별유량",
+    "fact_table": "dw.fact_______",
+    "dimension_tables": [],
+    "source_tables": [
+      ".calc_rdf01hh_trns_tb",
+      ".rdf01hh_tb",
+      ".rdr01mi_tb",
+      "all_objects",
+      "products",
+      "rwis.rdisaup_tb",
+      "rwis.rditag_tb"
+    ],
+    "mappings": [
+      {
+        "source_table": "calc_rdf01hh_trns_tb",
+        "source_column": "sub_tag_id",
+        "target_table": "fact_table",
+        "target_column": "sub_tag_id",
+        "transformation": "SUM(...)"
+      },
+      {
+        "source_table": "rdf01hh_tb",
+        "source_column": "log_time",
+        "target_table": "fact_table",
+        "target_column": "log_time",
+        "transformation": "GROUP BY"
+      },
+      {
+        "source_table": "rdr01mi_tb",
+        "source_column": "val",
+        "target_table": "fact_table",
+        "target_column": "measurement_value",
+        "transformation": "SUM(...)"
+      },
+      {
+        "source_table": "rdisaup_tb",
+        "source_column": "suj_code",
+        "target_table": "dim_site",
+        "target_column": "suj_code",
+        "transformation": "None"
+      },
+      {
+        "source_table": "rditag_tb",
+        "source_column": "tagsn",
+        "target_table": "dim_tag",
+        "target_column": "tagsn",
+        "transformation": "None"
+      },
+      {
+        "source_table": "all_objects",
+        "source_column": "date",
+        "target_table": "dim_time",
+        "target_column": "date",
+        "transformation": "None"
+      }
+    ],
+    "dw_schema": "dw",
+    "created_at": "2026-01-09T10:02:26.688651",
+    "last_sync": null,
+    "sync_mode": "incremental",
+    "incremental_column": "updated_at"
+  },
+  "SELECTAVGhVAL": {
+    "cube_name": "SELECTAVGhVAL",
+    "fact_table": "dw.fact_selectavghval",
+    "dimension_tables": [],
+    "source_tables": [
+      "rwis.rdf01hh_tb",
+      "dw.dim_time",
+      "rwis.rditag_tb",
+      "rwis.rdisaup_tb"
+    ],
+    "mappings": [
+      {
+        "source_table": "rwis",
+        "source_column": "rdf01hh_tb.VAL",
+        "target_table": "fact_average_flow",
+        "target_column": "average_flow",
+        "transformation": "AVG(...)"
+      },
+      {
+        "source_table": "rwis",
+        "source_column": "rdf01hh_tb.LOG_TIME",
+        "target_table": "dim_time",
+        "target_column": "date",
+        "transformation": "DATE_TRUNC('hour', LOG_TIME)"
+      },
+      {
+        "source_table": "rwis",
+        "source_column": "rditag_tb.TAG_SN",
+        "target_table": "dim_product",
+        "target_column": "tag_sn",
+        "transformation": "IDENTITY"
+      },
+      {
+        "source_table": "rwis",
+        "source_column": "rdisaup_tb.BPLC_CODE",
+        "target_table": "dim_product",
+        "target_column": "bplc_code",
+        "transformation": "IDENTITY"
+      }
+    ],
+    "dw_schema": "dw",
+    "created_at": "2026-01-09T11:58:35.301051",
+    "last_sync": null,
+    "sync_mode": "incremental",
+    "incremental_column": "updated_at"
+  }
+}

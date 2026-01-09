@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     query_timeout: int = 30
     max_rows: int = 1000
     
+    # Neo4j Settings (for catalog exploration and lineage)
+    neo4j_uri: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    neo4j_user: str = os.getenv("NEO4J_USER", "neo4j")
+    neo4j_password: str = os.getenv("NEO4J_PASSWORD", "12345analyzer")
+    neo4j_database: str = os.getenv("NEO4J_DATABASE", "neo4j")
+    
+    # DW Schema Settings
+    dw_schema: str = os.getenv("DW_SCHEMA", "dw")
+    
     class Config:
         env_file = ".env"
 

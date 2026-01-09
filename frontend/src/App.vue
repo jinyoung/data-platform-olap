@@ -142,7 +142,7 @@ onMounted(async () => {
           </div>
         </div>
         
-        <!-- Cube Modeler Tab -->
+        <!-- Cube Modeler Tab (includes ETL Design) -->
         <div v-if="activeTab === 'modeler'" class="tab-content slide-up">
           <CubeModeler />
         </div>

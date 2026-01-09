@@ -1,0 +1,175 @@
+{
+  "schema_name": "SELECTAVGhVALSchema",
+  "cubes": {
+    "사업장별유량": {
+      "name": "사업장별유량",
+      "fact_table": "fact_______",
+      "measures": [
+        {
+          "name": "Count",
+          "column": "id",
+          "agg": "COUNT",
+          "format_string": null,
+          "caption": null
+        },
+        {
+          "name": "Total",
+          "column": "amount",
+          "agg": "SUM",
+          "format_string": null,
+          "caption": null
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "dim_time",
+          "table": "dim_time",
+          "foreign_key": "dim_time_id",
+          "levels": [
+            {
+              "name": "id",
+              "column": "id",
+              "order_column": null,
+              "caption": null
+            }
+          ],
+          "caption": null
+        },
+        {
+          "name": "dim_product",
+          "table": "dim_product",
+          "foreign_key": "dim_product_id",
+          "levels": [
+            {
+              "name": "id",
+              "column": "id",
+              "order_column": null,
+              "caption": null
+            }
+          ],
+          "caption": null
+        },
+        {
+          "name": "dim_site",
+          "table": "dim_site",
+          "foreign_key": "dim_site_id",
+          "levels": [
+            {
+              "name": "id",
+              "column": "id",
+              "order_column": null,
+              "caption": null
+            }
+          ],
+          "caption": null
+        },
+        {
+          "name": "dim_tag",
+          "table": "dim_tag",
+          "foreign_key": "dim_tag_id",
+          "levels": [
+            {
+              "name": "id",
+              "column": "id",
+              "order_column": null,
+              "caption": null
+            }
+          ],
+          "caption": null
+        }
+      ],
+      "joins": [
+        {
+          "left_table": "fact_______",
+          "left_key": "dim_time_id",
+          "right_table": "dim_time",
+          "right_key": "id"
+        },
+        {
+          "left_table": "fact_______",
+          "left_key": "dim_product_id",
+          "right_table": "dim_product",
+          "right_key": "id"
+        },
+        {
+          "left_table": "fact_______",
+          "left_key": "dim_site_id",
+          "right_table": "dim_site",
+          "right_key": "id"
+        },
+        {
+          "left_table": "fact_______",
+          "left_key": "dim_tag_id",
+          "right_table": "dim_tag",
+          "right_key": "id"
+        }
+      ],
+      "caption": null
+    },
+    "SELECTAVGhVAL": {
+      "name": "SELECTAVGhVAL",
+      "fact_table": "fact_selectavghval",
+      "measures": [
+        {
+          "name": "Count",
+          "column": "id",
+          "agg": "COUNT",
+          "format_string": null,
+          "caption": null
+        },
+        {
+          "name": "Total",
+          "column": "amount",
+          "agg": "SUM",
+          "format_string": null,
+          "caption": null
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "dim_time",
+          "table": "dim_time",
+          "foreign_key": "dim_time_id",
+          "levels": [
+            {
+              "name": "id",
+              "column": "id",
+              "order_column": null,
+              "caption": null
+            }
+          ],
+          "caption": null
+        },
+        {
+          "name": "dim_product",
+          "table": "dim_product",
+          "foreign_key": "dim_product_id",
+          "levels": [
+            {
+              "name": "id",
+              "column": "id",
+              "order_column": null,
+              "caption": null
+            }
+          ],
+          "caption": null
+        }
+      ],
+      "joins": [
+        {
+          "left_table": "fact_selectavghval",
+          "left_key": "dim_time_id",
+          "right_table": "dim_time",
+          "right_key": "id"
+        },
+        {
+          "left_table": "fact_selectavghval",
+          "left_key": "dim_product_id",
+          "right_table": "dim_product",
+          "right_key": "id"
+        }
+      ],
+      "caption": null
+    }
+  }
+}

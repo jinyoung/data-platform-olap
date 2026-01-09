@@ -92,6 +92,22 @@ async def get_cube_schema_description(name: str):
     return {"description": description}
 
 
+@router.delete("/cube/{name}")
+async def delete_cube(name: str):
+    """Delete a specific cube."""
+    success = metadata_store.delete_cube(name)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Cube '{name}' not found")
+    return {"success": True, "message": f"Cube '{name}' deleted"}
+
+
+@router.delete("/cubes")
+async def delete_all_cubes():
+    """Delete all cubes."""
+    metadata_store.clear()
+    return {"success": True, "message": "All cubes deleted"}
+
+
 # ============== Pivot Query ==============
 
 @router.post("/pivot/query", response_model=QueryResult)
