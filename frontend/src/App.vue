@@ -7,6 +7,7 @@ import PivotEditor from './components/PivotEditor.vue'
 import NaturalQuery from './components/NaturalQuery.vue'
 import ResultGrid from './components/ResultGrid.vue'
 import CubeModeler from './components/CubeModeler.vue'
+import DataLineage from './components/DataLineage.vue'
 import LanguageSelector from './components/LanguageSelector.vue'
 
 const { t } = useI18n()
@@ -86,6 +87,20 @@ onMounted(async () => {
             </svg>
             {{ t('nav.cubeModeler') }}
           </button>
+          <button 
+            :class="['tab-btn', { active: activeTab === 'lineage' }]"
+            @click="activeTab = 'lineage'"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="5" cy="6" r="3"/>
+              <circle cx="19" cy="6" r="3"/>
+              <circle cx="12" cy="18" r="3"/>
+              <line x1="8" y1="6" x2="16" y2="6"/>
+              <line x1="6.5" y1="8.5" x2="10.5" y2="15.5"/>
+              <line x1="17.5" y1="8.5" x2="13.5" y2="15.5"/>
+            </svg>
+            {{ t('nav.dataLineage') }}
+          </button>
         </nav>
       </div>
       
@@ -99,9 +114,9 @@ onMounted(async () => {
     </header>
     
     <!-- Main Content -->
-    <main :class="['app-main', { 'full-width': activeTab === 'modeler' }]">
-      <!-- Sidebar - Schema Upload & Cube Selection (hidden in modeler) -->
-      <aside v-if="activeTab !== 'modeler'" class="sidebar">
+    <main :class="['app-main', { 'full-width': activeTab === 'modeler' || activeTab === 'lineage' }]">
+      <!-- Sidebar - Schema Upload & Cube Selection (hidden in modeler and lineage) -->
+      <aside v-if="activeTab !== 'modeler' && activeTab !== 'lineage'" class="sidebar">
         <SchemaUpload />
         
         <div v-if="store.hasCubes" class="cube-selector">
@@ -146,11 +161,16 @@ onMounted(async () => {
         <div v-if="activeTab === 'modeler'" class="tab-content slide-up">
           <CubeModeler />
         </div>
+        
+        <!-- Data Lineage Tab -->
+        <div v-if="activeTab === 'lineage'" class="tab-content slide-up">
+          <DataLineage />
+        </div>
       </div>
     </main>
     
-    <!-- Result Panel (hidden in modeler) -->
-    <div v-if="store.queryResult && activeTab !== 'modeler'" class="result-panel slide-up">
+    <!-- Result Panel (hidden in modeler and lineage) -->
+    <div v-if="store.queryResult && activeTab !== 'modeler' && activeTab !== 'lineage'" class="result-panel slide-up">
       <ResultGrid 
         :result="store.queryResult" 
         :sql="store.generatedSQL" 

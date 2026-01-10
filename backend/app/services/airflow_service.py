@@ -121,6 +121,86 @@ def create_dw_schema(**context):
         conn.close()
 
 
+def create_dimension_tables(**context):
+    """Create dimension tables if not exist."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        for dim_table in DIMENSION_TABLES:
+            dim_name = dim_table.split('.')[-1] if '.' in dim_table else dim_table
+            full_table = f"{{DW_SCHEMA}}.{{dim_name}}"
+            
+            # Find columns for this dimension from mappings
+            dim_mappings = [m for m in MAPPINGS if m.get('target_table') == dim_name]
+            
+            columns = ["id SERIAL PRIMARY KEY"]
+            for m in dim_mappings:
+                col_name = m.get('target_column', '')
+                if col_name and col_name != 'id':
+                    columns.append(f"{{col_name}} VARCHAR(255)")
+            columns.append("_etl_loaded_at TIMESTAMP DEFAULT NOW()")
+            
+            create_sql = f\"\"\"
+                CREATE TABLE IF NOT EXISTS {{full_table}} (
+                    {{', '.join(columns)}}
+                )
+            \"\"\"
+            cur.execute(create_sql)
+            print(f"Table {{full_table}} created/verified")
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating dimension tables: {{e}}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def create_fact_table(**context):
+    """Create fact table if not exists."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        fact_name = FACT_TABLE.split('.')[-1] if '.' in FACT_TABLE else FACT_TABLE
+        full_table = f"{{DW_SCHEMA}}.{{fact_name}}"
+        
+        # Find columns for fact table from mappings
+        fact_mappings = [m for m in MAPPINGS if m.get('target_table') == fact_name]
+        
+        columns = ["id SERIAL PRIMARY KEY"]
+        
+        # Add FK columns for each dimension
+        for dim_table in DIMENSION_TABLES:
+            dim_name = dim_table.split('.')[-1] if '.' in dim_table else dim_table
+            columns.append(f"{{dim_name}}_id INTEGER")
+        
+        # Add measure columns
+        for m in fact_mappings:
+            col_name = m.get('target_column', '')
+            if col_name and col_name != 'id':
+                columns.append(f"{{col_name}} NUMERIC(20,4)")
+        
+        columns.append("_etl_loaded_at TIMESTAMP DEFAULT NOW()")
+        
+        create_sql = f\"\"\"
+            CREATE TABLE IF NOT EXISTS {{full_table}} (
+                {{', '.join(columns)}}
+            )
+        \"\"\"
+        cur.execute(create_sql)
+        print(f"Table {{full_table}} created/verified")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating fact table: {{e}}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
 def sync_dimension(dim_table: str, **context):
     """Sync a dimension table from source."""
     conn = get_db_connection()
@@ -236,7 +316,19 @@ with DAG(
         python_callable=create_dw_schema,
     )
     
-    # Task 2: Sync Dimension Tables
+    # Task 2: Create Dimension Tables (DDL)
+    create_dims = PythonOperator(
+        task_id='create_dimension_tables',
+        python_callable=create_dimension_tables,
+    )
+    
+    # Task 3: Create Fact Table (DDL)
+    create_fact = PythonOperator(
+        task_id='create_fact_table',
+        python_callable=create_fact_table,
+    )
+    
+    # Task 4: Sync Dimension Tables (ETL)
     dim_tasks = []
     for dim_table in DIMENSION_TABLES:
         dim_name = dim_table.split('.')[-1] if '.' in dim_table else dim_table
@@ -247,14 +339,18 @@ with DAG(
         )
         dim_tasks.append(task)
     
-    # Task 3: Sync Fact Table
+    # Task 5: Sync Fact Table (ETL)
     sync_fact = PythonOperator(
         task_id='sync_fact_table',
         python_callable=sync_fact_table,
     )
     
-    # Set dependencies: schema -> dimensions -> fact
-    create_schema >> dim_tasks >> sync_fact
+    # Set dependencies: schema -> create tables -> sync dims -> sync fact
+    create_schema >> create_dims >> create_fact
+    if dim_tasks:
+        create_fact >> dim_tasks >> sync_fact
+    else:
+        create_fact >> sync_fact
 '''
         
         return dag_code

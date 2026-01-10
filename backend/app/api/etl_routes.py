@@ -327,6 +327,415 @@ async def register_lineage(cube_name: str, request: LineageRequest):
         raise HTTPException(status_code=500, detail=f"Failed to register lineage: {str(e)}")
 
 
+# ============== DW Tables Management ==============
+
+@router.get("/dw/tables")
+async def list_dw_tables(schema_name: str = "dw"):
+    """List all tables in the DW schema."""
+    import asyncpg
+    from ..core.config import get_settings
+    
+    settings = get_settings()
+    
+    try:
+        conn = await asyncpg.connect(settings.database_url)
+        try:
+            # Get all tables in the dw schema
+            tables = await conn.fetch("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = $1
+                ORDER BY table_name
+            """, schema_name)
+            
+            return {
+                "schema": schema_name,
+                "tables": [row["table_name"] for row in tables]
+            }
+        finally:
+            await conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list tables: {str(e)}")
+
+
+class DeleteDWTablesRequest(BaseModel):
+    """Request to delete DW tables."""
+    tables: List[str] = []  # Empty means delete all
+    schema_name: str = "dw"
+
+
+@router.post("/dw/tables/delete")
+async def delete_dw_tables(request: DeleteDWTablesRequest):
+    """Delete specified tables from the DW schema."""
+    import asyncpg
+    from ..core.config import get_settings
+    
+    settings = get_settings()
+    
+    try:
+        conn = await asyncpg.connect(settings.database_url)
+        try:
+            deleted = []
+            errors = []
+            
+            # If no specific tables, get all tables in the schema
+            if not request.tables:
+                tables = await conn.fetch("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = $1
+                """, request.schema_name)
+                table_names = [row["table_name"] for row in tables]
+            else:
+                table_names = request.tables
+            
+            # Delete each table with CASCADE
+            for table in table_names:
+                try:
+                    await conn.execute(f'DROP TABLE IF EXISTS "{request.schema_name}"."{table}" CASCADE')
+                    deleted.append(table)
+                except Exception as e:
+                    errors.append({"table": table, "error": str(e)})
+            
+            return {
+                "success": True,
+                "deleted": deleted,
+                "errors": errors,
+                "schema": request.schema_name
+            }
+        finally:
+            await conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete tables: {str(e)}")
+
+
+@router.delete("/dw/schema")
+async def drop_dw_schema(schema_name: str = "dw"):
+    """Drop the entire DW schema and all its tables."""
+    import asyncpg
+    from ..core.config import get_settings
+    
+    settings = get_settings()
+    
+    try:
+        conn = await asyncpg.connect(settings.database_url)
+        try:
+            await conn.execute(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE')
+            return {
+                "success": True,
+                "message": f"Schema '{schema_name}' dropped"
+            }
+        finally:
+            await conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to drop schema: {str(e)}")
+
+
+# ============== Data Lineage Overview ==============
+
+@router.get("/lineage/overview")
+async def get_lineage_overview():
+    """Get data lineage overview for visualization.
+    
+    Returns all ETL configurations formatted for lineage diagram:
+    - Source tables (OLTP)
+    - ETL processes (cube configurations)
+    - Target tables (OLAP star schema)
+    - Data flow connections
+    """
+    try:
+        configs = etl_service.get_all_etl_configs()
+        
+        # Collect unique source tables
+        source_tables = []
+        source_table_set = set()
+        
+        # Collect ETL processes (one per cube)
+        etl_processes = []
+        
+        # Collect target tables (fact + dimensions)
+        target_tables = []
+        target_table_set = set()
+        
+        # Collect data flows
+        data_flows = []
+        
+        for cube_name, config in configs.items():
+            # Source tables
+            for source in config.source_tables:
+                if source not in source_table_set:
+                    source_table_set.add(source)
+                    # Count columns from mappings
+                    col_count = len([m for m in config.mappings if m.source_table == source])
+                    source_tables.append({
+                        "id": f"src_{source}",
+                        "name": source,
+                        "type": "source",
+                        "columns": col_count or 5,  # default
+                        "schema": "public"
+                    })
+            
+            # ETL Process for this cube
+            process_id = f"etl_{cube_name}"
+            etl_processes.append({
+                "id": process_id,
+                "name": f"ETL_{cube_name.upper()}",
+                "cube_name": cube_name,
+                "operation": "INSERT" if config.sync_mode == "full" else "MERGE",
+                "sync_mode": config.sync_mode,
+                "mappings_count": len(config.mappings)
+            })
+            
+            # Target tables - Fact table
+            fact_name = config.fact_table.split('.')[-1] if '.' in config.fact_table else config.fact_table
+            if fact_name not in target_table_set:
+                target_table_set.add(fact_name)
+                fact_cols = len([m for m in config.mappings if m.target_table == config.fact_table or m.target_table == fact_name])
+                target_tables.append({
+                    "id": f"tgt_{fact_name}",
+                    "name": fact_name,
+                    "type": "fact",
+                    "columns": fact_cols or 10,
+                    "schema": config.dw_schema,
+                    "cube_name": cube_name
+                })
+            
+            # Target tables - Dimension tables
+            for dim_table in config.dimension_tables:
+                dim_name = dim_table.split('.')[-1] if '.' in dim_table else dim_table
+                if dim_name not in target_table_set:
+                    target_table_set.add(dim_name)
+                    dim_cols = len([m for m in config.mappings if m.target_table == dim_table or m.target_table == dim_name])
+                    target_tables.append({
+                        "id": f"tgt_{dim_name}",
+                        "name": dim_name,
+                        "type": "dimension",
+                        "columns": dim_cols or 5,
+                        "schema": config.dw_schema,
+                        "cube_name": cube_name
+                    })
+            
+            # Data flows: source -> ETL
+            for source in config.source_tables:
+                data_flows.append({
+                    "from": f"src_{source}",
+                    "to": process_id,
+                    "type": "extract"
+                })
+            
+            # Data flows: ETL -> targets
+            data_flows.append({
+                "from": process_id,
+                "to": f"tgt_{fact_name}",
+                "type": "load"
+            })
+            for dim_table in config.dimension_tables:
+                dim_name = dim_table.split('.')[-1] if '.' in dim_table else dim_table
+                data_flows.append({
+                    "from": process_id,
+                    "to": f"tgt_{dim_name}",
+                    "type": "load"
+                })
+        
+        return {
+            "source_tables": source_tables,
+            "etl_processes": etl_processes,
+            "target_tables": target_tables,
+            "data_flows": data_flows,
+            "summary": {
+                "total_sources": len(source_tables),
+                "total_etl_processes": len(etl_processes),
+                "total_targets": len(target_tables),
+                "total_flows": len(data_flows)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get lineage overview: {str(e)}")
+
+
+@router.get("/lineage/{cube_name}")
+async def get_cube_lineage(cube_name: str):
+    """Get detailed lineage for a specific cube."""
+    config = etl_service.get_etl_config(cube_name)
+    if not config:
+        raise HTTPException(status_code=404, detail=f"No ETL config found for cube: {cube_name}")
+    
+    # Build detailed lineage info
+    source_columns = {}
+    target_columns = {}
+    
+    for mapping in config.mappings:
+        # Group by source table
+        if mapping.source_table not in source_columns:
+            source_columns[mapping.source_table] = []
+        source_columns[mapping.source_table].append({
+            "column": mapping.source_column,
+            "target": f"{mapping.target_table}.{mapping.target_column}",
+            "transformation": mapping.transformation
+        })
+        
+        # Group by target table
+        if mapping.target_table not in target_columns:
+            target_columns[mapping.target_table] = []
+        target_columns[mapping.target_table].append({
+            "column": mapping.target_column,
+            "source": f"{mapping.source_table}.{mapping.source_column}",
+            "transformation": mapping.transformation
+        })
+    
+    return {
+        "cube_name": cube_name,
+        "fact_table": config.fact_table,
+        "dimension_tables": config.dimension_tables,
+        "source_tables": config.source_tables,
+        "sync_mode": config.sync_mode,
+        "incremental_column": config.incremental_column,
+        "source_columns": source_columns,
+        "target_columns": target_columns,
+        "created_at": config.created_at,
+        "last_sync": config.last_sync
+    }
+
+
+# ============== Full Provisioning ==============
+
+class ProvisionRequest(BaseModel):
+    """Request for full cube provisioning."""
+    cube_name: str
+    fact_table: str
+    dimensions: List[Dict[str, Any]]
+    measures: List[Dict[str, Any]]
+    dw_schema: str = "dw"
+    generate_sample_data: bool = True
+
+
+@router.post("/provision")
+async def provision_cube(request: ProvisionRequest):
+    """
+    Full cube provisioning:
+    1. Create DW schema
+    2. Generate and execute DDL for all tables
+    3. Populate dim_time with generated data
+    4. Populate other dimensions from source tables (if available)
+    """
+    results = {
+        "success": True,
+        "steps": [],
+        "errors": []
+    }
+    
+    try:
+        # Step 1: Create DW schema
+        await etl_service.create_dw_schema(request.dw_schema)
+        results["steps"].append({"step": "create_schema", "status": "success"})
+        
+        # Step 2: Build and execute DDL
+        # Drop existing tables first
+        drop_statements = []
+        for dim in request.dimensions:
+            dim_name = dim.get("name", "").replace(".", "_")
+            drop_statements.append(f"DROP TABLE IF EXISTS {request.dw_schema}.{dim_name} CASCADE")
+        
+        fact_name = request.fact_table.split(".")[-1] if "." in request.fact_table else request.fact_table
+        drop_statements.append(f"DROP TABLE IF EXISTS {request.dw_schema}.{fact_name} CASCADE")
+        
+        # Execute drop statements
+        pool = await etl_service.get_pool()
+        async with pool.acquire() as conn:
+            for stmt in drop_statements:
+                try:
+                    await conn.execute(stmt)
+                except Exception as e:
+                    results["errors"].append(f"Drop: {str(e)}")
+        
+        # Build CREATE TABLE statements
+        ddl_statements = []
+        
+        # Dimension tables
+        for dim in request.dimensions:
+            dim_name = dim.get("name", "dim_unknown")
+            levels = dim.get("levels", [])
+            
+            columns = ["id SERIAL PRIMARY KEY"]
+            
+            # Special handling for dim_time - add date column and proper types
+            if dim_name.lower() == "dim_time":
+                columns.append("date DATE")
+                columns.append("year INTEGER")
+                columns.append("quarter INTEGER")
+                columns.append("month INTEGER")
+                columns.append("day INTEGER")
+            else:
+                for level in levels:
+                    col_name = level.get("column", level.get("name", "value"))
+                    columns.append(f"{col_name} VARCHAR(255)")
+            
+            columns.append("_etl_loaded_at TIMESTAMP DEFAULT NOW()")
+            
+            ddl_statements.append(
+                f"CREATE TABLE IF NOT EXISTS {request.dw_schema}.{dim_name} ({', '.join(columns)})"
+            )
+        
+        # Fact table
+        fact_columns = ["id SERIAL PRIMARY KEY"]
+        for dim in request.dimensions:
+            dim_name = dim.get("name", "dim_unknown")
+            fact_columns.append(f"{dim_name}_id INTEGER")
+        for measure in request.measures:
+            col_name = measure.get("column", measure.get("name", "value"))
+            fact_columns.append(f"{col_name} NUMERIC(15,4)")
+        fact_columns.append("_etl_loaded_at TIMESTAMP DEFAULT NOW()")
+        
+        ddl_statements.append(
+            f"CREATE TABLE IF NOT EXISTS {request.dw_schema}.{fact_name} ({', '.join(fact_columns)})"
+        )
+        
+        # Execute DDL
+        async with pool.acquire() as conn:
+            for stmt in ddl_statements:
+                try:
+                    await conn.execute(stmt)
+                except Exception as e:
+                    results["errors"].append(f"DDL: {str(e)}")
+        
+        results["steps"].append({"step": "create_tables", "status": "success", "tables": len(ddl_statements)})
+        
+        # Step 3: Populate dim_time if it exists
+        if request.generate_sample_data:
+            has_dim_time = any(d.get("name", "").lower() == "dim_time" for d in request.dimensions)
+            if has_dim_time:
+                try:
+                    time_sql = f"""
+                    INSERT INTO {request.dw_schema}.dim_time (date, year, quarter, month, day)
+                    SELECT 
+                        d::date,
+                        EXTRACT(YEAR FROM d)::int,
+                        EXTRACT(QUARTER FROM d)::int,
+                        EXTRACT(MONTH FROM d)::int,
+                        EXTRACT(DAY FROM d)::int
+                    FROM generate_series(
+                        CURRENT_DATE - INTERVAL '365 days',
+                        CURRENT_DATE,
+                        '1 day'::interval
+                    ) d
+                    ON CONFLICT DO NOTHING
+                    """
+                    async with pool.acquire() as conn:
+                        await conn.execute(time_sql)
+                    results["steps"].append({"step": "populate_dim_time", "status": "success"})
+                except Exception as e:
+                    results["errors"].append(f"dim_time: {str(e)}")
+        
+        results["cube_name"] = request.cube_name
+        results["tables_created"] = [d.get("name") for d in request.dimensions] + [fact_name]
+        
+    except Exception as e:
+        results["success"] = False
+        results["errors"].append(str(e))
+    
+    return results
+
+
 # ============== Health Check ==============
 
 @router.get("/health")

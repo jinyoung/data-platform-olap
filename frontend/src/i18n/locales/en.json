@@ -6,7 +6,8 @@
   "nav": {
     "pivotAnalysis": "Pivot Analysis",
     "naturalLanguage": "Natural Language",
-    "cubeModeler": "Cube Modeler"
+    "cubeModeler": "Cube Modeler",
+    "dataLineage": "Data Lineage"
   },
   "common": {
     "loading": "Loading...",
@@ -27,7 +28,8 @@
     "name": "Name",
     "table": "Table",
     "column": "Column",
-    "type": "Type"
+    "type": "Type",
+    "retry": "Retry"
   },
   "schema": {
     "dropZone": "Drop Mondrian XML here",
@@ -125,6 +127,23 @@
     "min": "MIN",
     "max": "MAX",
     "distinctCount": "DISTINCT COUNT"
+  },
+  "lineage": {
+    "title": "Data Lineage",
+    "subtitle": "Visualize data flows from OLTP source tables to OLAP star schema",
+    "searchPlaceholder": "Search tables/ETL...",
+    "refresh": "Refresh",
+    "sourceTables": "Source Tables",
+    "etlProcesses": "ETL Processes",
+    "targetTables": "Target Tables",
+    "dataFlows": "Data Flows",
+    "etlProcess": "ETL Process",
+    "sourceTable": "Source Table",
+    "targetTable": "Target Table",
+    "dataFlow": "Data Flow",
+    "target": "Target",
+    "noData": "No Data Lineage",
+    "noDataDesc": "Data lineage will appear when you create ETL configurations. Try designing an ETL in the Cube Modeler."
   }
 }
 

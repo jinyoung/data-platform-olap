@@ -1,21 +1,28 @@
 {
-  "schema_name": "SELECTAVGhVALSchema",
+  "schema_name": "site_flow_analysisSchema",
   "cubes": {
-    "사업장별유량": {
-      "name": "사업장별유량",
-      "fact_table": "fact_______",
+    "정수장별유량분석": {
+      "name": "정수장별유량분석",
+      "fact_table": "fact_정수장별유량분석",
       "measures": [
         {
-          "name": "Count",
-          "column": "id",
-          "agg": "COUNT",
+          "name": "정수장에서 측정된 유량의 평균값",
+          "column": "avg_flow",
+          "agg": "AVG",
           "format_string": null,
           "caption": null
         },
         {
-          "name": "Total",
-          "column": "amount",
+          "name": "정수장에서 측정된 유량의 총합",
+          "column": "total_flow",
           "agg": "SUM",
+          "format_string": null,
+          "caption": null
+        },
+        {
+          "name": "유량 측정의 총 건수",
+          "column": "measurement_count",
+          "agg": "COUNT",
           "format_string": null,
           "caption": null
         }
@@ -27,22 +34,32 @@
           "foreign_key": "dim_time_id",
           "levels": [
             {
-              "name": "id",
-              "column": "id",
+              "name": "date",
+              "column": "date",
               "order_column": null,
               "caption": null
-            }
-          ],
-          "caption": null
-        },
-        {
-          "name": "dim_product",
-          "table": "dim_product",
-          "foreign_key": "dim_product_id",
-          "levels": [
+            },
             {
-              "name": "id",
-              "column": "id",
+              "name": "year",
+              "column": "year",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "quarter",
+              "column": "quarter",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "month",
+              "column": "month",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "day",
+              "column": "day",
               "order_column": null,
               "caption": null
             }
@@ -55,8 +72,8 @@
           "foreign_key": "dim_site_id",
           "levels": [
             {
-              "name": "id",
-              "column": "id",
+              "name": "name",
+              "column": "name",
               "order_column": null,
               "caption": null
             }
@@ -69,8 +86,8 @@
           "foreign_key": "dim_tag_id",
           "levels": [
             {
-              "name": "id",
-              "column": "id",
+              "name": "tag_type",
+              "column": "tag_type",
               "order_column": null,
               "caption": null
             }
@@ -80,25 +97,19 @@
       ],
       "joins": [
         {
-          "left_table": "fact_______",
+          "left_table": "fact_정수장별유량분석",
           "left_key": "dim_time_id",
           "right_table": "dim_time",
           "right_key": "id"
         },
         {
-          "left_table": "fact_______",
-          "left_key": "dim_product_id",
-          "right_table": "dim_product",
-          "right_key": "id"
-        },
-        {
-          "left_table": "fact_______",
+          "left_table": "fact_정수장별유량분석",
           "left_key": "dim_site_id",
           "right_table": "dim_site",
           "right_key": "id"
         },
         {
-          "left_table": "fact_______",
+          "left_table": "fact_정수장별유량분석",
           "left_key": "dim_tag_id",
           "right_table": "dim_tag",
           "right_key": "id"
@@ -106,21 +117,21 @@
       ],
       "caption": null
     },
-    "SELECTAVGhVAL": {
-      "name": "SELECTAVGhVAL",
-      "fact_table": "fact_selectavghval",
+    "site_flow_analysis": {
+      "name": "site_flow_analysis",
+      "fact_table": "fact_flow_rate",
       "measures": [
         {
-          "name": "Count",
-          "column": "id",
-          "agg": "COUNT",
+          "name": "avg_flow_rate",
+          "column": "avg_flow",
+          "agg": "AVG",
           "format_string": null,
           "caption": null
         },
         {
-          "name": "Total",
-          "column": "amount",
-          "agg": "SUM",
+          "name": "total_flow_count",
+          "column": "count",
+          "agg": "COUNT",
           "format_string": null,
           "caption": null
         }
@@ -132,8 +143,32 @@
           "foreign_key": "dim_time_id",
           "levels": [
             {
-              "name": "id",
-              "column": "id",
+              "name": "date",
+              "column": "date",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "year",
+              "column": "year",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "quarter",
+              "column": "quarter",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "month",
+              "column": "month",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "day",
+              "column": "day",
               "order_column": null,
               "caption": null
             }
@@ -141,13 +176,25 @@
           "caption": null
         },
         {
-          "name": "dim_product",
-          "table": "dim_product",
-          "foreign_key": "dim_product_id",
+          "name": "dim_site",
+          "table": "dim_site",
+          "foreign_key": "dim_site_id",
           "levels": [
             {
-              "name": "id",
-              "column": "id",
+              "name": "tag_sn",
+              "column": "tag_sn",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "bplc_code",
+              "column": "bplc_code",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "vrnt_code",
+              "column": "vrnt_code",
               "order_column": null,
               "caption": null
             }
@@ -157,15 +204,15 @@
       ],
       "joins": [
         {
-          "left_table": "fact_selectavghval",
+          "left_table": "fact_flow_rate",
           "left_key": "dim_time_id",
           "right_table": "dim_time",
           "right_key": "id"
         },
         {
-          "left_table": "fact_selectavghval",
-          "left_key": "dim_product_id",
-          "right_table": "dim_product",
+          "left_table": "fact_flow_rate",
+          "left_key": "dim_site_id",
+          "right_table": "dim_site",
           "right_key": "id"
         }
       ],

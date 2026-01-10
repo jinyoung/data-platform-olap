@@ -224,7 +224,9 @@ class ETLService:
     ) -> Dict[str, Any]:
         """Use LLM to suggest ETL strategy based on cube description and available tables.
         
-        This is the ReAct-style interaction to help users configure ETL.
+        This is a two-step ReAct-style interaction:
+        1. STEP 1: Generalize the query to identify pivot dimensions
+        2. STEP 2: Design the star schema based on generalized requirements
         """
         llm = ChatOpenAI(
             model=self.settings.openai_model,
@@ -239,37 +241,198 @@ class ETLService:
             for t in available_tables
         ])
         
-        system_prompt = """You are a data warehouse architect helping design ETL pipelines.
-Given the cube description and available source tables, suggest:
-1. Which tables should be used as fact table sources
-2. Which tables should be used as dimension sources
-3. How to map source columns to the star schema
-4. Suggested ETL strategy (full refresh vs incremental)
+        # =====================================================================
+        # STEP 1: Query Generalization - Identify Pivot Dimensions
+        # =====================================================================
+        generalization_prompt = """You are an OLAP analyst. The user has given a specific query or question.
+Your task is to GENERALIZE this specific query into a broader analytical use case.
+
+REASONING PROCESS:
+1. Identify what the user is asking about specifically (e.g., "청주 정수장" = specific water plant)
+2. Find related master/reference tables that contain all instances (e.g., all water plants, not just 청주)
+3. Identify potential PIVOT DIMENSIONS - what aspects could the user want to analyze by:
+   - Time dimension (by day, month, quarter, year)
+   - Location/Site dimension (by plant, region, etc.)
+   - Category dimension (by type, category, etc.)
+   - Other relevant groupings from the data
+4. Identify MEASURES - what numeric values can be aggregated (sum, avg, count, etc.)
+
+IMPORTANT NAMING CONVENTION:
+- ALL technical names (dimension names, measure names, column names) MUST be in ENGLISH using snake_case
+- Descriptions can be in Korean for user understanding
+- Examples: dim_time, dim_site, dim_category, flow_rate, total_count, avg_value
 
 OUTPUT FORMAT (JSON):
 {
-    "fact_sources": ["table1", "table2"],
-    "dimension_sources": {
-        "dim_time": ["source_table"],
-        "dim_product": ["product_table"]
-    },
-    "suggested_mappings": [
-        {"source": "table.column", "target": "fact_table.column", "transformation": "SUM(...)"}
+    "original_query": "The user's original query",
+    "analysis_type": "What kind of analysis this is (e.g., Flow Rate Analysis, Sales Analysis)",
+    "analysis_type_korean": "분석 유형 (한글 설명)",
+    "generalized_query": "The generalized analytical question in English",
+    "generalized_query_korean": "일반화된 분석 질문 (한글)",
+    "identified_dimensions": [
+        {
+            "name": "dim_site",
+            "name_korean": "사업장",
+            "description": "Why this is a useful pivot dimension (Korean OK)",
+            "source_hint": "Which table might contain this data",
+            "hierarchy": ["region", "site_name"]
+        }
     ],
-    "sync_strategy": "incremental",
-    "incremental_column": "updated_at",
-    "reasoning": "Explanation of the strategy..."
+    "identified_measures": [
+        {
+            "name": "avg_flow_rate",
+            "name_korean": "평균 유량",
+            "aggregation": "AVG",
+            "description": "What this measure represents (Korean OK)"
+        }
+    ],
+    "pivot_examples": [
+        "Average flow rate by site and month",
+        "Yearly flow rate trends"
+    ],
+    "reasoning": "Explanation of the generalization logic"
 }"""
-        
-        response = await llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=f"""Cube Description:
+
+        generalization_response = await llm.ainvoke([
+            SystemMessage(content=generalization_prompt),
+            HumanMessage(content=f"""User Query/Description:
 {cube_description}
 
 Available Source Tables:
 {tables_context}
 
-Suggest the best ETL strategy for this OLAP cube.""")
+Analyze this query and generalize it for OLAP cube design.""")
+        ])
+        
+        # Parse generalization result
+        try:
+            gen_content = generalization_response.content.strip()
+            if gen_content.startswith("```"):
+                lines = gen_content.split("\n")
+                gen_content = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+            generalization = json.loads(gen_content)
+        except json.JSONDecodeError:
+            generalization = {
+                "original_query": cube_description,
+                "generalized_query": cube_description,
+                "reasoning": "Could not parse generalization"
+            }
+        
+        # =====================================================================
+        # STEP 2: Star Schema Design based on Generalized Requirements
+        # =====================================================================
+        
+        system_prompt = """You are a data warehouse architect helping design ETL pipelines.
+Based on the GENERALIZED analytical requirements from STEP 1, design a star schema.
+
+CRITICAL NAMING CONVENTION:
+- ALL technical names MUST be in ENGLISH using snake_case
+- This includes: cube_name, fact_table_name, dimension names, column names, measure names
+- Descriptions can be in Korean for user understanding
+- Examples:
+  - cube_name: "site_flow_analysis" NOT "정수장별유량분석"
+  - fact_table: "fact_flow_rate" NOT "fact_유량"
+  - dimension: "dim_site", "dim_time", "dim_category"
+  - measures: "avg_flow_rate", "total_count", "max_value"
+
+IMPORTANT DESIGN PRINCIPLES:
+1. Design for the GENERALIZED use case, not just the specific query
+2. Include ALL identified dimensions that enable flexible pivoting
+3. Each dimension should have proper source table mapping
+4. Measures should support the aggregations identified
+
+For each DIMENSION, you MUST specify:
+- source_table: the exact source table name (from available tables)
+- source_columns: list of columns to extract from source
+- target_columns: corresponding target columns in dimension table
+- generation_strategy: "etl" (extract from source), "generate" (auto-generate like time dimension), or "manual" (user maintains)
+
+OUTPUT FORMAT (JSON):
+{
+    "cube_name": "site_flow_analysis",
+    "cube_name_korean": "정수장별 유량 분석",
+    "cube_description": "Analyzes water flow rates across all treatment plants over time",
+    "cube_description_korean": "모든 정수장의 시간별 유량 분석",
+    "generalization": {
+        "original_query": "The user's original query",
+        "generalized_query": "Flow rate analysis by site and time period",
+        "generalized_query_korean": "사업장별, 시점별 유량 분석",
+        "pivot_capabilities": ["List of analyses this cube enables"]
+    },
+    "fact_sources": ["table1", "table2"],
+    "fact_table_name": "fact_flow_rate",
+    "fact_mappings": [
+        {"source": "table.column", "target": "fact_flow_rate.avg_flow", "transformation": "AVG(...)", "description": "평균 유량"}
+    ],
+    "dimensions": [
+        {
+            "name": "dim_time",
+            "name_korean": "시간",
+            "description": "Time dimension for daily/monthly/quarterly/yearly analysis",
+            "description_korean": "일/월/분기/년 분석용 시간 디멘전",
+            "generation_strategy": "generate",
+            "source_table": null,
+            "columns": [
+                {"name": "id", "type": "serial", "description": "PK"},
+                {"name": "date", "type": "date", "description": "Date"},
+                {"name": "year", "type": "int", "description": "Year"},
+                {"name": "quarter", "type": "int", "description": "Quarter"},
+                {"name": "month", "type": "int", "description": "Month"},
+                {"name": "day", "type": "int", "description": "Day"}
+            ],
+            "generate_sql": "INSERT INTO dw.dim_time SELECT ... (or null)"
+        },
+        {
+            "name": "dim_site",
+            "name_korean": "사업장",
+            "description": "Site dimension for plant/location analysis",
+            "description_korean": "정수장/사업소별 분석용 디멘전",
+            "generation_strategy": "etl",
+            "source_table": "exact_table_name_from_available",
+            "source_columns": ["col1", "col2"],
+            "target_columns": ["id", "name"],
+            "column_mappings": [
+                {"source": "table.col", "target": "dim_site.id", "transformation": ""}
+            ]
+        }
+    ],
+    "measures": [
+        {"name": "avg_flow_rate", "name_korean": "평균 유량", "column": "avg_flow", "aggregator": "AVG", "description": "Average flow rate"},
+        {"name": "total_count", "name_korean": "측정 횟수", "column": "count", "aggregator": "COUNT", "description": "Number of measurements"}
+    ],
+    "suggested_mappings": [
+        {"source": "table.column", "target": "fact_flow_rate.avg_flow", "transformation": "AVG(...)", "description": "평균 유량"}
+    ],
+    "sync_strategy": "incremental",
+    "incremental_column": "updated_at",
+    "reasoning": "Detailed explanation of the strategy..."
+}
+
+IMPORTANT: 
+- ALL TECHNICAL NAMES (cube_name, table names, column names) MUST BE IN ENGLISH
+- Use the GENERALIZATION RESULT to identify which dimensions to include
+- Every dimension MUST have a clear ETL strategy (etl, generate, or manual)
+- If dimension data comes from existing tables, specify exact source_table and column_mappings
+- Time dimensions are typically "generate" strategy
+- Location/Site/Customer dimensions are typically "etl" strategy with source table mapping
+- If no suitable source exists, use "manual" strategy and explain what data is needed"""
+        
+        # Include generalization results in the context for step 2
+        gen_context = json.dumps(generalization, ensure_ascii=False, indent=2)
+        
+        response = await llm.ainvoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"""STEP 1 Analysis Result (Query Generalization):
+{gen_context}
+
+Original User Query:
+{cube_description}
+
+Available Source Tables:
+{tables_context}
+
+Based on the GENERALIZED analytical requirements from STEP 1, design the optimal star schema and ETL strategy.
+The cube should support ALL the pivot analyses identified in step 1, not just the specific query.""")
         ])
         
         # Parse JSON response
@@ -278,11 +441,18 @@ Suggest the best ETL strategy for this OLAP cube.""")
             if content.startswith("```"):
                 lines = content.split("\n")
                 content = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
-            return json.loads(content)
+            result = json.loads(content)
+            
+            # Merge generalization data if not already present
+            if "generalization" not in result:
+                result["generalization"] = generalization
+            
+            return result
         except json.JSONDecodeError:
             return {
                 "error": "Failed to parse LLM response",
-                "raw_response": response.content
+                "raw_response": response.content,
+                "generalization": generalization
             }
     
     async def create_etl_config(
