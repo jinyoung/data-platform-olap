@@ -1,48 +1,119 @@
 {
-  "정수장별유량분석": {
-    "cube_name": "정수장별유량분석",
-    "fact_table": "dw.fact_정수장별유량분석",
-    "dimension_tables": [],
+  "water_quality_analysis": {
+    "cube_name": "water_quality_analysis",
+    "fact_table": "dw.fact_turbidity",
+    "dimension_tables": [
+      "dw.dim_time",
+      "dw.dim_site"
+    ],
     "source_tables": [
-      "rwis.rdf01hh_tb",
-      "rwis.rditag_tb"
+      "RWIS.RDF01HH_TB",
+      "RWIS.RDITAG_TB"
     ],
     "mappings": [
       {
-        "source_table": "rwis",
-        "source_column": "rdf01hh_tb.LOG_TIME",
-        "target_table": "fact_average_flow",
-        "target_column": "log_time",
+        "source_table": "RWIS",
+        "source_column": "RDF01HH_TB.VAL",
+        "target_table": "fact_turbidity",
+        "target_column": "avg_turbidity",
+        "transformation": "AVG(...)"
+      },
+      {
+        "source_table": "RWIS",
+        "source_column": "RDITAG_TB.TAGSN",
+        "target_table": "dim_site",
+        "target_column": "id",
+        "transformation": ""
+      },
+      {
+        "source_table": "RWIS",
+        "source_column": "RDITAG_TB.TAG_DESC",
+        "target_table": "dim_site",
+        "target_column": "site_name",
         "transformation": ""
       }
     ],
     "dw_schema": "dw",
-    "created_at": "2026-01-09T16:39:38.870079",
+    "created_at": "2026-01-12T09:55:56.862438",
     "last_sync": null,
     "sync_mode": "incremental",
-    "incremental_column": "updated_at"
+    "incremental_column": "LOG_TIME"
   },
-  "site_flow_analysis": {
-    "cube_name": "site_flow_analysis",
-    "fact_table": "dw.fact_flow_rate",
-    "dimension_tables": [],
+  "turbidity_analysis": {
+    "cube_name": "turbidity_analysis",
+    "fact_table": "dw.fact_turbidity",
+    "dimension_tables": [
+      "dw.dim_time",
+      "dw.dim_site",
+      "dw.dim_tag"
+    ],
     "source_tables": [
-      "rwis.rdf01hh_tb",
-      "rwis.rditag_tb"
+      "RWIS.RDF01HH_TB",
+      "RWIS.RDITAG_TB",
+      "RWIS.RDISAUP_TB"
     ],
     "mappings": [
       {
-        "source_table": "rwis",
-        "source_column": "rdf01hh_tb.VAL",
-        "target_table": "fact_flow_rate",
-        "target_column": "avg_flow",
+        "source_table": "RWIS",
+        "source_column": "RDF01HH_TB.VAL",
+        "target_table": "fact_turbidity",
+        "target_column": "avg_turbidity",
         "transformation": "AVG(...)"
+      },
+      {
+        "source_table": "RWIS",
+        "source_column": "RDF01HH_TB.VAL",
+        "target_table": "fact_turbidity",
+        "target_column": "max_turbidity",
+        "transformation": "MAX(...)"
+      },
+      {
+        "source_table": "RWIS",
+        "source_column": "RDF01HH_TB.VAL",
+        "target_table": "fact_turbidity",
+        "target_column": "min_turbidity",
+        "transformation": "MIN(...)"
+      },
+      {
+        "source_table": "RWIS",
+        "source_column": "RDF01HH_TB.VAL",
+        "target_table": "fact_turbidity",
+        "target_column": "total_measurements",
+        "transformation": "COUNT(...)"
+      },
+      {
+        "source_table": "RWIS",
+        "source_column": "RDISAUP_TB.BPLC_CODE",
+        "target_table": "dim_site",
+        "target_column": "id",
+        "transformation": ""
+      },
+      {
+        "source_table": "RWIS",
+        "source_column": "RDISAUP_TB.BPLC_NM",
+        "target_table": "dim_site",
+        "target_column": "name",
+        "transformation": ""
+      },
+      {
+        "source_table": "RWIS",
+        "source_column": "RDITAG_TB.TAGSN",
+        "target_table": "dim_tag",
+        "target_column": "id",
+        "transformation": ""
+      },
+      {
+        "source_table": "RWIS",
+        "source_column": "RDITAG_TB.TAG_DESC",
+        "target_table": "dim_tag",
+        "target_column": "description",
+        "transformation": ""
       }
     ],
     "dw_schema": "dw",
-    "created_at": "2026-01-09T18:53:28.173613",
+    "created_at": "2026-01-11T21:00:24.252870",
     "last_sync": null,
     "sync_mode": "incremental",
-    "incremental_column": "updated_at"
+    "incremental_column": "LOG_TIME"
   }
 }

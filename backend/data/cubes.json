@@ -1,27 +1,34 @@
 {
-  "schema_name": "site_flow_analysisSchema",
+  "schema_name": "water_quality_analysisSchema",
   "cubes": {
-    "정수장별유량분석": {
-      "name": "정수장별유량분석",
-      "fact_table": "fact_정수장별유량분석",
+    "turbidity_analysis": {
+      "name": "turbidity_analysis",
+      "fact_table": "fact_turbidity",
       "measures": [
         {
-          "name": "정수장에서 측정된 유량의 평균값",
-          "column": "avg_flow",
+          "name": "avg_turbidity",
+          "column": "avg_turbidity",
           "agg": "AVG",
           "format_string": null,
           "caption": null
         },
         {
-          "name": "정수장에서 측정된 유량의 총합",
-          "column": "total_flow",
-          "agg": "SUM",
+          "name": "max_turbidity",
+          "column": "max_turbidity",
+          "agg": "MAX",
           "format_string": null,
           "caption": null
         },
         {
-          "name": "유량 측정의 총 건수",
-          "column": "measurement_count",
+          "name": "min_turbidity",
+          "column": "min_turbidity",
+          "agg": "MIN",
+          "format_string": null,
+          "caption": null
+        },
+        {
+          "name": "total_measurements",
+          "column": "total_measurements",
           "agg": "COUNT",
           "format_string": null,
           "caption": null
@@ -86,8 +93,8 @@
           "foreign_key": "dim_tag_id",
           "levels": [
             {
-              "name": "tag_type",
-              "column": "tag_type",
+              "name": "description",
+              "column": "description",
               "order_column": null,
               "caption": null
             }
@@ -97,19 +104,19 @@
       ],
       "joins": [
         {
-          "left_table": "fact_정수장별유량분석",
+          "left_table": "fact_turbidity",
           "left_key": "dim_time_id",
           "right_table": "dim_time",
           "right_key": "id"
         },
         {
-          "left_table": "fact_정수장별유량분석",
+          "left_table": "fact_turbidity",
           "left_key": "dim_site_id",
           "right_table": "dim_site",
           "right_key": "id"
         },
         {
-          "left_table": "fact_정수장별유량분석",
+          "left_table": "fact_turbidity",
           "left_key": "dim_tag_id",
           "right_table": "dim_tag",
           "right_key": "id"
@@ -117,20 +124,34 @@
       ],
       "caption": null
     },
-    "site_flow_analysis": {
-      "name": "site_flow_analysis",
-      "fact_table": "fact_flow_rate",
+    "water_quality_analysis": {
+      "name": "water_quality_analysis",
+      "fact_table": "fact_turbidity",
       "measures": [
         {
-          "name": "avg_flow_rate",
-          "column": "avg_flow",
+          "name": "avg_turbidity",
+          "column": "avg_turbidity",
           "agg": "AVG",
           "format_string": null,
           "caption": null
         },
         {
-          "name": "total_flow_count",
-          "column": "count",
+          "name": "max_turbidity",
+          "column": "max_turbidity",
+          "agg": "MAX",
+          "format_string": null,
+          "caption": null
+        },
+        {
+          "name": "min_turbidity",
+          "column": "min_turbidity",
+          "agg": "MIN",
+          "format_string": null,
+          "caption": null
+        },
+        {
+          "name": "total_count",
+          "column": "total_count",
           "agg": "COUNT",
           "format_string": null,
           "caption": null
@@ -155,12 +176,6 @@
               "caption": null
             },
             {
-              "name": "quarter",
-              "column": "quarter",
-              "order_column": null,
-              "caption": null
-            },
-            {
               "name": "month",
               "column": "month",
               "order_column": null,
@@ -169,6 +184,12 @@
             {
               "name": "day",
               "column": "day",
+              "order_column": null,
+              "caption": null
+            },
+            {
+              "name": "hour",
+              "column": "hour",
               "order_column": null,
               "caption": null
             }
@@ -181,20 +202,14 @@
           "foreign_key": "dim_site_id",
           "levels": [
             {
-              "name": "tag_sn",
-              "column": "tag_sn",
+              "name": "site_name",
+              "column": "site_name",
               "order_column": null,
               "caption": null
             },
             {
-              "name": "bplc_code",
-              "column": "bplc_code",
-              "order_column": null,
-              "caption": null
-            },
-            {
-              "name": "vrnt_code",
-              "column": "vrnt_code",
+              "name": "filter_name",
+              "column": "filter_name",
               "order_column": null,
               "caption": null
             }
@@ -204,13 +219,13 @@
       ],
       "joins": [
         {
-          "left_table": "fact_flow_rate",
+          "left_table": "fact_turbidity",
           "left_key": "dim_time_id",
           "right_table": "dim_time",
           "right_key": "id"
         },
         {
-          "left_table": "fact_flow_rate",
+          "left_table": "fact_turbidity",
           "left_key": "dim_site_id",
           "right_table": "dim_site",
           "right_key": "id"

@@ -1,7 +1,7 @@
 """
 Auto-generated Airflow DAG for ETL Pipeline
-Cube: 정수장별유량
-Generated: 2026-01-09T09:42:49.270062
+Cube: turbidity_analysis
+Generated: 2026-01-12T10:00:05.205268
 """
 from datetime import datetime, timedelta
 from airflow import DAG
@@ -12,36 +12,71 @@ import json
 import os
 
 # DAG Configuration
-DAG_ID = "etl_정수장별유량"
-CUBE_NAME = "정수장별유량"
-FACT_TABLE = "dw.fact_flow"
+DAG_ID = "etl_turbidity_analysis"
+CUBE_NAME = "turbidity_analysis"
+FACT_TABLE = "dw.fact_turbidity"
 DW_SCHEMA = "dw"
 SYNC_MODE = "incremental"
-INCREMENTAL_COLUMN = 'log_time'
+INCREMENTAL_COLUMN = 'LOG_TIME'
 
 DIMENSION_TABLES = ["dw.dim_time", "dw.dim_site", "dw.dim_tag"]
-SOURCE_TABLES = ["rwis.rdf01hh_tb", "rwis.rdisaup_tb", "rwis.rditag_tb"]
+SOURCE_TABLES = ["RWIS.RDF01HH_TB", "RWIS.RDITAG_TB", "RWIS.RDISAUP_TB"]
 MAPPINGS = [
         {
-                "source_table": "rwis.rdf01hh_tb",
-                "source_column": "log_time",
-                "target_table": "fact_flow",
-                "target_column": "log_time",
+                "source_table": "RWIS",
+                "source_column": "RDF01HH_TB.VAL",
+                "target_table": "fact_turbidity",
+                "target_column": "avg_turbidity",
+                "transformation": "AVG(...)"
+        },
+        {
+                "source_table": "RWIS",
+                "source_column": "RDF01HH_TB.VAL",
+                "target_table": "fact_turbidity",
+                "target_column": "max_turbidity",
+                "transformation": "MAX(...)"
+        },
+        {
+                "source_table": "RWIS",
+                "source_column": "RDF01HH_TB.VAL",
+                "target_table": "fact_turbidity",
+                "target_column": "min_turbidity",
+                "transformation": "MIN(...)"
+        },
+        {
+                "source_table": "RWIS",
+                "source_column": "RDF01HH_TB.VAL",
+                "target_table": "fact_turbidity",
+                "target_column": "total_measurements",
+                "transformation": "COUNT(...)"
+        },
+        {
+                "source_table": "RWIS",
+                "source_column": "RDISAUP_TB.BPLC_CODE",
+                "target_table": "dim_site",
+                "target_column": "id",
                 "transformation": ""
         },
         {
-                "source_table": "rwis.rdf01hh_tb",
-                "source_column": "tagsn",
-                "target_table": "fact_flow",
-                "target_column": "tagsn",
+                "source_table": "RWIS",
+                "source_column": "RDISAUP_TB.BPLC_NM",
+                "target_table": "dim_site",
+                "target_column": "name",
                 "transformation": ""
         },
         {
-                "source_table": "rwis.rdf01hh_tb",
-                "source_column": "val",
-                "target_table": "fact_flow",
-                "target_column": "flow_value",
-                "transformation": "AVG(val)"
+                "source_table": "RWIS",
+                "source_column": "RDITAG_TB.TAGSN",
+                "target_table": "dim_tag",
+                "target_column": "id",
+                "transformation": ""
+        },
+        {
+                "source_table": "RWIS",
+                "source_column": "RDITAG_TB.TAG_DESC",
+                "target_table": "dim_tag",
+                "target_column": "description",
+                "transformation": ""
         }
 ]
 
@@ -64,7 +99,7 @@ def get_db_connection():
         port=os.getenv('OLTP_DB_PORT', '5432'),
         user=os.getenv('OLTP_DB_USER', 'postgres'),
         password=os.getenv('OLTP_DB_PASSWORD', 'postgres123'),
-        database=os.getenv('OLTP_DB_NAME', 'pivot_studio')
+        database=os.getenv('OLTP_DB_NAME', 'meetingroom')
     )
 
 
@@ -76,6 +111,86 @@ def create_dw_schema(**context):
         cur.execute(f"CREATE SCHEMA IF NOT EXISTS {DW_SCHEMA}")
         conn.commit()
         print(f"Schema {DW_SCHEMA} created/verified")
+    finally:
+        cur.close()
+        conn.close()
+
+
+def create_dimension_tables(**context):
+    """Create dimension tables if not exist."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        for dim_table in DIMENSION_TABLES:
+            dim_name = dim_table.split('.')[-1] if '.' in dim_table else dim_table
+            full_table = f"{DW_SCHEMA}.{dim_name}"
+            
+            # Find columns for this dimension from mappings
+            dim_mappings = [m for m in MAPPINGS if m.get('target_table') == dim_name]
+            
+            columns = ["id SERIAL PRIMARY KEY"]
+            for m in dim_mappings:
+                col_name = m.get('target_column', '')
+                if col_name and col_name != 'id':
+                    columns.append(f"{col_name} VARCHAR(255)")
+            columns.append("_etl_loaded_at TIMESTAMP DEFAULT NOW()")
+            
+            create_sql = f"""
+                CREATE TABLE IF NOT EXISTS {full_table} (
+                    {', '.join(columns)}
+                )
+            """
+            cur.execute(create_sql)
+            print(f"Table {full_table} created/verified")
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating dimension tables: {e}")
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def create_fact_table(**context):
+    """Create fact table if not exists."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        fact_name = FACT_TABLE.split('.')[-1] if '.' in FACT_TABLE else FACT_TABLE
+        full_table = f"{DW_SCHEMA}.{fact_name}"
+        
+        # Find columns for fact table from mappings
+        fact_mappings = [m for m in MAPPINGS if m.get('target_table') == fact_name]
+        
+        columns = ["id SERIAL PRIMARY KEY"]
+        
+        # Add FK columns for each dimension
+        for dim_table in DIMENSION_TABLES:
+            dim_name = dim_table.split('.')[-1] if '.' in dim_table else dim_table
+            columns.append(f"{dim_name}_id INTEGER")
+        
+        # Add measure columns
+        for m in fact_mappings:
+            col_name = m.get('target_column', '')
+            if col_name and col_name != 'id':
+                columns.append(f"{col_name} NUMERIC(20,4)")
+        
+        columns.append("_etl_loaded_at TIMESTAMP DEFAULT NOW()")
+        
+        create_sql = f"""
+            CREATE TABLE IF NOT EXISTS {full_table} (
+                {', '.join(columns)}
+            )
+        """
+        cur.execute(create_sql)
+        print(f"Table {full_table} created/verified")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating fact table: {e}")
+        raise
     finally:
         cur.close()
         conn.close()
@@ -196,7 +311,19 @@ with DAG(
         python_callable=create_dw_schema,
     )
     
-    # Task 2: Sync Dimension Tables
+    # Task 2: Create Dimension Tables (DDL)
+    create_dims = PythonOperator(
+        task_id='create_dimension_tables',
+        python_callable=create_dimension_tables,
+    )
+    
+    # Task 3: Create Fact Table (DDL)
+    create_fact = PythonOperator(
+        task_id='create_fact_table',
+        python_callable=create_fact_table,
+    )
+    
+    # Task 4: Sync Dimension Tables (ETL)
     dim_tasks = []
     for dim_table in DIMENSION_TABLES:
         dim_name = dim_table.split('.')[-1] if '.' in dim_table else dim_table
@@ -207,11 +334,15 @@ with DAG(
         )
         dim_tasks.append(task)
     
-    # Task 3: Sync Fact Table
+    # Task 5: Sync Fact Table (ETL)
     sync_fact = PythonOperator(
         task_id='sync_fact_table',
         python_callable=sync_fact_table,
     )
     
-    # Set dependencies: schema -> dimensions -> fact
-    create_schema >> dim_tasks >> sync_fact
+    # Set dependencies: schema -> create tables -> sync dims -> sync fact
+    create_schema >> create_dims >> create_fact
+    if dim_tasks:
+        create_fact >> dim_tasks >> sync_fact
+    else:
+        create_fact >> sync_fact

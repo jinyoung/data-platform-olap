@@ -140,13 +140,17 @@ async def airflow_health():
 # ============== Convenience Endpoints ==============
 
 @router.post("/etl/{cube_name}/deploy")
-async def deploy_etl_pipeline(cube_name: str):
+async def deploy_etl_pipeline(cube_name: str, force: bool = False):
     """Deploy ETL pipeline for a cube.
     
     This is a convenience endpoint that:
     1. Gets the ETL config for the cube
     2. Generates an Airflow DAG
     3. Returns the Airflow URL to monitor the pipeline
+    
+    Args:
+        cube_name: Name of the cube
+        force: If True, regenerate DAG even if it exists
     """
     # Get ETL config
     config = etl_service.get_etl_config(cube_name)
@@ -158,15 +162,17 @@ async def deploy_etl_pipeline(cube_name: str):
         )
     
     try:
-        # Generate DAG
+        # Generate DAG (force=True will overwrite existing)
         dag_info = airflow_service.save_dag(config.to_dict())
         
+        action = "재생성됨" if force else "배포됨"
         return {
             "success": True,
             "cube_name": cube_name,
             "dag_id": dag_info.dag_id,
             "airflow_url": dag_info.airflow_url,
-            "message": f"ETL pipeline deployed. Open Airflow to trigger: {dag_info.airflow_url}"
+            "message": f"ETL pipeline {action}. Open Airflow to trigger: {dag_info.airflow_url}",
+            "force": force
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -263,17 +263,18 @@ IMPORTANT NAMING CONVENTION:
 - Examples: dim_time, dim_site, dim_category, flow_rate, total_count, avg_value
 
 OUTPUT FORMAT (JSON):
+IMPORTANT: generalized_query_korean and pivot_examples MUST be in Korean for user display!
 {
-    "original_query": "The user's original query",
-    "analysis_type": "What kind of analysis this is (e.g., Flow Rate Analysis, Sales Analysis)",
-    "analysis_type_korean": "분석 유형 (한글 설명)",
-    "generalized_query": "The generalized analytical question in English",
-    "generalized_query_korean": "일반화된 분석 질문 (한글)",
+    "original_query": "사용자의 원본 쿼리 (그대로)",
+    "analysis_type": "Flow Rate Analysis (영문)",
+    "analysis_type_korean": "유량 분석 (한글)",
+    "generalized_query": "The generalized analytical question (English)",
+    "generalized_query_korean": "일반화된 분석 질문 (반드시 한글로 작성! 예: '정수장별 평균 유량은 얼마인가?')",
     "identified_dimensions": [
         {
             "name": "dim_site",
             "name_korean": "사업장",
-            "description": "Why this is a useful pivot dimension (Korean OK)",
+            "description": "피벗 차원으로 유용한 이유 (한글)",
             "source_hint": "Which table might contain this data",
             "hierarchy": ["region", "site_name"]
         }
@@ -283,14 +284,14 @@ OUTPUT FORMAT (JSON):
             "name": "avg_flow_rate",
             "name_korean": "평균 유량",
             "aggregation": "AVG",
-            "description": "What this measure represents (Korean OK)"
+            "description": "측정값 설명 (한글)"
         }
     ],
     "pivot_examples": [
-        "Average flow rate by site and month",
-        "Yearly flow rate trends"
+        "사업장별 월간 평균 유량 분석",
+        "연간 유량 추이 분석"
     ],
-    "reasoning": "Explanation of the generalization logic"
+    "reasoning": "일반화 로직 설명 (한글)"
 }"""
 
         generalization_response = await llm.ainvoke([

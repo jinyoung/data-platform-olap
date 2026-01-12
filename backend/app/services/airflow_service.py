@@ -104,7 +104,7 @@ def get_db_connection():
         port=os.getenv('OLTP_DB_PORT', '5432'),
         user=os.getenv('OLTP_DB_USER', 'postgres'),
         password=os.getenv('OLTP_DB_PASSWORD', 'postgres123'),
-        database=os.getenv('OLTP_DB_NAME', 'pivot_studio')
+        database=os.getenv('OLTP_DB_NAME', 'meetingroom')
     )
 
 
