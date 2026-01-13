@@ -9,6 +9,7 @@ from ..services.xml_parser import MondrianXMLParser
 from ..services.metadata_store import metadata_store
 from ..services.sql_generator import SQLGenerator
 from ..services.db_executor import db_executor
+from ..services.neo4j_client import neo4j_client
 from ..langgraph_workflow.text2sql import get_workflow
 
 router = APIRouter()
@@ -93,19 +94,47 @@ async def get_cube_schema_description(name: str):
 
 
 @router.delete("/cube/{name}")
-async def delete_cube(name: str):
-    """Delete a specific cube."""
+async def delete_cube(name: str, delete_neo4j: bool = True):
+    """Delete a specific cube and optionally its Neo4j schema."""
     success = metadata_store.delete_cube(name)
     if not success:
         raise HTTPException(status_code=404, detail=f"Cube '{name}' not found")
-    return {"success": True, "message": f"Cube '{name}' deleted"}
+    
+    neo4j_deleted = False
+    if delete_neo4j:
+        try:
+            async with neo4j_client:
+                await neo4j_client.delete_star_schema(cube_name=name)
+            neo4j_deleted = True
+        except Exception as e:
+            print(f"Warning: Neo4j cleanup failed: {e}")
+    
+    return {
+        "success": True,
+        "message": f"Cube '{name}' deleted",
+        "neo4j_deleted": neo4j_deleted
+    }
 
 
 @router.delete("/cubes")
-async def delete_all_cubes():
-    """Delete all cubes."""
+async def delete_all_cubes(delete_neo4j: bool = True):
+    """Delete all cubes and optionally their Neo4j schemas."""
     metadata_store.clear()
-    return {"success": True, "message": "All cubes deleted"}
+    
+    neo4j_deleted = False
+    if delete_neo4j:
+        try:
+            async with neo4j_client:
+                await neo4j_client.delete_star_schema()  # Delete all in dw schema
+            neo4j_deleted = True
+        except Exception as e:
+            print(f"Warning: Neo4j cleanup failed: {e}")
+    
+    return {
+        "success": True,
+        "message": "All cubes deleted",
+        "neo4j_deleted": neo4j_deleted
+    }
 
 
 # ============== Pivot Query ==============
@@ -552,6 +581,108 @@ async def execute_sql_statements(request: ExecuteSQLRequest):
         return {
             "success": False,
             "error": str(e)
+        }
+
+
+# ============== OLAP Validation ==============
+
+class OLAPValidationRequest(BaseModel):
+    """Request for OLAP SQL validation."""
+    fact_table: str
+    dimension_tables: List[dict]  # [{table, foreign_key, primary_key}]
+    measures: List[str] = []
+
+
+@router.post("/etl/validate-olap")
+async def validate_olap_sql(request: OLAPValidationRequest):
+    """Validate that fact table can properly join with dimension tables for OLAP queries.
+    
+    This tests:
+    1. Fact table exists and has data
+    2. All FK columns exist in fact table
+    3. FK columns properly join with dimension tables
+    4. Sample OLAP query works correctly
+    """
+    from ..services.etl_agent import ETLTools
+    
+    tools = ETLTools()
+    try:
+        result = await tools.validate_olap_sql(
+            fact_table=request.fact_table,
+            dimension_tables=request.dimension_tables,
+            measures=request.measures
+        )
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "validations": [],
+            "errors": [str(e)]
+        }
+
+
+@router.get("/etl/validate-olap/{cube_name}")
+async def validate_cube_olap(cube_name: str):
+    """Validate OLAP capability for a specific cube by name.
+    
+    Automatically extracts fact table, dimension tables, and FK relationships
+    from the ETL configuration.
+    """
+    from ..services.etl_agent import ETLTools
+    from ..core.config import get_settings
+    import aiofiles
+    import json
+    
+    settings = get_settings()
+    
+    # Load ETL config for this cube
+    config_path = f"{settings.data_dir}/etl/{cube_name}.json"
+    try:
+        async with aiofiles.open(config_path, 'r') as f:
+            etl_config = json.loads(await f.read())
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"ETL config for cube '{cube_name}' not found")
+    
+    # Build dimension table info with FK relationships
+    dimension_tables = []
+    for dim_table in etl_config.get("dimension_tables", []):
+        # Extract dimension name from table name
+        dim_name = dim_table.split(".")[-1].replace("dim_", "")
+        dimension_tables.append({
+            "table": dim_table,
+            "foreign_key": f"{dim_name}_id",  # Standard FK naming
+            "primary_key": "id"
+        })
+    
+    # Get measure columns from mappings
+    measures = []
+    for mapping in etl_config.get("mappings", []):
+        if mapping.get("target_table", "").startswith("fact_"):
+            col = mapping.get("target_column", "")
+            if col and col not in measures:
+                measures.append(col)
+    
+    tools = ETLTools()
+    try:
+        result = await tools.validate_olap_sql(
+            fact_table=etl_config.get("fact_table", ""),
+            dimension_tables=dimension_tables,
+            measures=measures
+        )
+        
+        result["cube_name"] = cube_name
+        result["fact_table"] = etl_config.get("fact_table", "")
+        result["dimensions_checked"] = len(dimension_tables)
+        
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "cube_name": cube_name,
+            "validations": [],
+            "errors": [str(e)]
         }
 
 

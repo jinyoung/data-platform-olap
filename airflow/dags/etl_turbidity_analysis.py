@@ -1,7 +1,7 @@
 """
 Auto-generated Airflow DAG for ETL Pipeline
 Cube: turbidity_analysis
-Generated: 2026-01-12T10:00:05.205268
+Generated: 2026-01-13T02:19:56.932900
 """
 from datetime import datetime, timedelta
 from airflow import DAG
